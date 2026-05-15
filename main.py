@@ -7,17 +7,27 @@ Created on Mon May 11 14:33:16 2026
 
 import tellurium as te
 import numpy as np
+import matplotlib.pyplot as plt
 import roadrunner
 
 beta_ev = 0.24 # sort this out properly
 e_donor    = -5.10 # in eV
 e_acceptor = -3.85 # in eV
-estoi = np.floor(-(e_donor + e_acceptor) * beta_ev)
-print(estoi)
+estoi = np.floor(-(e_donor - e_acceptor) / beta_ev)
+print(f"E* stoichiometry: {estoi}")
 
-period = 1000
-intensity = 0.7
-cycles = 20
+period = 100
+intensity = 10
+cycles = 10
+
+k_resp = 1
+k_resp_back = 1
+k1 = 1
+k2 = 1
+k_day = 1
+k_night = 1
+k_maintenance = 1
+
 
 def detailed_balance(e1, e2, k12, k21):
     '''
@@ -38,8 +48,8 @@ end
 
 model resp()
     // Variables
-    kr = 0.1
-    kb = 0 // add detailed balance!!
+    kr = {k_resp} // this basically controls how much Cr you accumulate
+    kb = {k_resp_back} // add detailed balance!!
     
     // Reactions
     fw: Do + Cr + {estoi} E -> $Dr + $Co + {estoi} Estar; kr*Do*Cr*(E^{estoi});
@@ -54,9 +64,10 @@ end
 model scheme1_photochem()
 
   // Variable initialization:
-  k1 = 1
-  k2 = 1
-  gam := square_wave(time, {period}, {intensity})
+  k1 = {k1}
+  k2 = {k2}
+  //gam := square_wave(time, {period}, {intensity})
+  gam = {intensity}
   
   // Reactions:
   photo: P -> Ps; gam * P
@@ -73,8 +84,8 @@ end
 model storage()
     // variables
     gam := square_wave(time, {period}, 1)
-    kd = 1
-    kn = 1/{period}
+    kd = {k_day}
+    kn = {k_night}
     
     // reactions
     Cr -> Cstore; kd * Cr
@@ -83,25 +94,33 @@ end
 
 model maintenance()
     // variables
-    km = 1
+    km = {k_maintenance}
     
     //reactions
-    Estar -> E; km * Estar * Cstore
+    Estar -> E; km * Estar
 end
 
 model scheme1()
     P: scheme1_photochem()
     R: resp()
     M: maintenance()
-    S: storage()
+    //S: storage()
     P.Do is R.Do
     P.Cr is R.Cr
     M.E is R.E
     M.Estar is R.Estar
-    S.Cr is R.Cr
-    M.Cstore is S.Cstore
+    //S.Cr is R.Cr
+    //M.Cr is R.Cr
 end
 
 """)
 result = r.simulate(0, cycles*period, cycles*period + 1)
-r.plot(result, logy=True, ylim=[0.0001, 100])
+r.plot(result, logy=False, ylim=[0.001, 1.2 * np.max(result[:, 1:])])
+'''
+fig, ax = plt.subplots()
+ax.plot(result['time'], result['[R_Cr]'], label='[R_Cr]', color='r')
+ax.plot(result['time'], result['[R_Estar]'], label='[E*]', color='k')
+ax.legend()
+plt.show()
+plt.close()
+'''
