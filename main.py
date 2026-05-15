@@ -10,11 +10,23 @@ import numpy as np
 import matplotlib.pyplot as plt
 import roadrunner
 
+'''
+TO DO:
+    - sort out the workflow: i think the intended behaviour here is that
+    the user sets which photosynthetic scheme they want to investigate,
+    possibly with a set of specific parameters to scan over, and then
+    everything else follows from that (Estoi, gamma wavelength, etc.).
+    - figure out how the required wavelength, light intensity, etc. all
+    fit in here; at the moment they kind of don't affect anything
+    - fix docstrings and tidy up code and so on
+'''
 beta_ev = 0.24 # sort this out properly
 e_donor    = -5.10 # in eV
 e_acceptor = -3.85 # in eV
 estoi = np.floor(-(e_donor - e_acceptor) / beta_ev)
 print(f"E* stoichiometry: {estoi}")
+
+scheme = "scheme1"
 
 period = 100
 intensity = 10
@@ -27,7 +39,6 @@ k2 = 1
 k_day = 1
 k_night = 1
 k_maintenance = 1
-
 
 def detailed_balance(e1, e2, k12, k21):
     '''
@@ -61,6 +72,25 @@ model resp()
     E = 1; Estar = 0;
 end
 
+model storage()
+    // variables
+    gam := square_wave(time, {period}, 1)
+    kd = {k_day}
+    kn = {k_night}
+    
+    // reactions
+    Cr -> Cstore; kd * Cr
+    Cstore -> Cr; kn * (1 - gam) * Cstore
+end
+
+model maintenance()
+    // variables
+    km = {k_maintenance}
+    
+    //reactions
+    Estar -> E; km * Estar
+end
+
 model scheme1_photochem()
 
   // Variable initialization:
@@ -81,27 +111,28 @@ model scheme1_photochem()
   
 end
 
-model storage()
-    // variables
-    gam := square_wave(time, {period}, 1)
-    kd = {k_day}
-    kn = {k_night}
-    
-    // reactions
-    Cr -> Cstore; kd * Cr
-    Cstore -> Cr; kn * (1 - gam) * Cstore
+model scheme2_photochem()
+  // Variable initialization:
+  k1 = {k1}
+  k2 = {k2}
+  //gam := square_wave(time, {period}, {intensity})
+  gam = {intensity}
+  
+  // Reactions:
+  photo: P -> Ps; gam * P
+  Cred: Ps + $Co -> Po + Cr + Estar; k1 * Ps
+  Dox: $Dr + Po -> Do + P; k2 * Po
+
+  // Species initializations:
+  P = 1; Ps = 0; Po = 0;
+  Cr = 0; Co = 1;
+  Do = 0; Dr = 1;
+  Estar = 0;
+  
 end
 
-model maintenance()
-    // variables
-    km = {k_maintenance}
-    
-    //reactions
-    Estar -> E; km * Estar
-end
-
-model scheme1()
-    P: scheme1_photochem()
+model {scheme}()
+    P: {scheme}_photochem()
     R: resp()
     M: maintenance()
     //S: storage()
