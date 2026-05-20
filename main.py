@@ -19,7 +19,7 @@ import tellurium as te
 import numpy as np
 import matplotlib.pyplot as plt
 import roadrunner
-from scipy.constants import h, c, e, Avogadro, Boltzmann
+from scipy.constants import h, c, e, Boltzmann
 import light
 
 Temperature = 300
@@ -69,14 +69,14 @@ dg_b = -4.27 # 1/3 between
 dg_c = -4.68 # 2/3 between
 
 dg_p = { # limit for the integral to get excitation rate
-    "1": [ev_nm(611.0)],
-    "2": [ev_nm(541.0)],
-    "3": [ev_nm(611.0)],
-    "4": [ev_nm(1192.0)],
+    "1": [dg_co2 - dg_h2o],
+    "2": [dg_co2 - dg_h2o],
+    "3": [0.99], # see eq. 44 of overleaf
+    "4": [ev_nm(1192.0)],# unclear to me what this is
     "5": [ev_nm(611.0), ev_nm(1192.0)],
     "6": [ev_nm(611.0), ev_nm(1192.0)],
-    "7": [ev_nm(611.0), ev_nm(1192.0)],
-    "8": [ev_nm(611.0), ev_nm(1192.0)],
+    "7": [(dg_co2 - dg_h2o)/2.0, (dg_co2 - dg_h2o)/2.0],
+    "8": [(dg_co2 - dg_h2o)/3.0, (dg_co2 - dg_h2o)/3.0],
     }
 
 dg_gamma = { # reddest usable wavelength of light
@@ -85,9 +85,9 @@ dg_gamma = { # reddest usable wavelength of light
     "3": [ev_nm(611.0)],
     "4": [ev_nm(1192.0)],
     "5": [ev_nm(611.0), ev_nm(1192.0)],
-    "6": [ev_nm(611.0), ev_nm(1192.0)],
-    "7": [ev_nm(611.0), ev_nm(1192.0)],
-    "8": [ev_nm(611.0), ev_nm(1192.0)],
+    "6": [ev_nm(701.0), ev_nm(1192.0)],
+    "7": [ev_nm(882.0), ev_nm(882.0)],
+    "8": [ev_nm(969.0), ev_nm(969.0)],
     }
 
 estoi = estar_stoi(dg_h2o, dg_co2)
@@ -95,14 +95,22 @@ print(f"E* stoichiometry: {estoi}")
 
 scheme = "1"
 
+exc_rate = []
+for dgp, dgg in zip(dg_p[scheme], dg_gamma[scheme]):
+    tf = light.micromole_in_region(spectrum, 400, ev_nm(dgp))
+    uf = light.micromole_in_region(spectrum, 400, ev_nm(dgg))
+    exc_rate.append(uf/tf)
+    
 period = 100
-intensity = 5
+intensity = exc_rate
 cycles = 10
 
 k_resp = 1
 k_resp_back = 1
 k1 = 1
 k2 = 1
+k3 = 1
+k4 = 1
 k_day = 1
 k_night = 1
 k_maintenance = 1
@@ -149,78 +157,101 @@ model maintenance()
 end
 
 model scheme_1_photochem()
-
-  // Variable initialization:
-  k1 = {k1}
-  k2 = {k2}
-  //gam := square_wave(time, {period}, {intensity})
-  gam = {intensity}
+   // Variable initialization:
+   k1 = {k1}
+   k2 = {k2}
+   //gam := square_wave(time, {period}, {intensity})
+   gam = {exc_rate[0]}
   
-  // Reactions:
-  photo: P -> Ps; gam * P
-  Cred: Ps + $Co -> Po + Cr; k1 * Ps
-  Dox: $Dr + Po -> Do + P; k2 * Po
+   // Reactions:
+   photo: P -> Ps; gam * P
+   Cred: Ps + $Co -> Po + Cr; k1 * Ps
+   Dox: $Dr + Po -> Do + P; k2 * Po
 
-  // Species initializations:
-  P = 1; Ps = 0; Po = 0;
-  Cr = 0; Co = 1;
-  Do = 0; Dr = 1;
-  
+   // Species initializations:
+   P = 1; Ps = 0; Po = 0;
+   Cr = 0; Co = 1;
+   Do = 0; Dr = 1;
 end
 
 model scheme_2_photochem()
-  // Variable initialization:
-  k1 = {k1}
-  k2 = {k2}
-  gam = {intensity}
+   // Variable initialization:
+   k1 = {k1}
+   k2 = {k2}
+   gam = {exc_rate[0]}
   
-  // Reactions:
-  photo: P -> Ps; gam * P
-  Cred: Ps + $Co -> Po + Cr + Estar; k1 * Ps
-  Dox: $Dr + Po -> Do + P; k2 * Po
+   // Reactions:
+   photo: P -> Ps; gam * P
+   Cred: Ps + $Co -> Po + Cr + Estar; k1 * Ps
+   Dox: $Dr + Po -> Do + P; k2 * Po
 
-  // Species initializations:
-  P = 1; Ps = 0; Po = 0;
-  Cr = 0; Co = 1;
-  Do = 0; Dr = 1;
-  Estar = 0;
-  
+   // Species initializations:
+   P = 1; Ps = 0; Po = 0;
+   Cr = 0; Co = 1;
+   Do = 0; Dr = 1;
+   Estar = 0;
 end
 
 model scheme_2b_photochem()
-  // Variable initialization:
-  k1 = {k1}
-  k2 = {k2}
-  gam = {intensity}
+   // Variable initialization:
+   k1 = {k1}
+   k2 = {k2}
+   gam = {exc_rate[0]}
   
-  // Reactions:
-  photo: P -> Ps; gam * P
-  Cred: Ps + $Co -> Po + Cr; k1 * Ps
-  Dox: $Dr + Po + E -> Do + P + Estar; k2 * Po * E
+   // Reactions:
+   photo: P -> Ps; gam * P
+   Cred: Ps + $Co -> Po + Cr; k1 * Ps
+   Dox: $Dr + Po + E -> Do + P + Estar; k2 * Po * E
 
-  // Species initializations:
-  P = 1; Ps = 0; Po = 0;
-  Cr = 0; Co = 1;
-  Do = 0; Dr = 1;
-  E = 1; Estar = 0;
+   // Species initializations:
+   P = 1; Ps = 0; Po = 0;
+   Cr = 0; Co = 1;
+   Do = 0; Dr = 1;
+   E = 1; Estar = 0;
 end
 
 model scheme_3_photochem()
-  // Variable initialization:
-  k1 = {k1}
-  k2 = {k2}
-  gam = {intensity}
+   // Variable initialization:
+   k1 = {k1}
+   k2 = {k2}
+   gam = {exc_rate[0]}
   
-  // Reactions:
-  photo: P -> Ps; gam * P
-  Ared: Ps + Ao -> Po + Ar; k1 * Ps
-  Aox: Ar + Po + E -> Ao + P + Estar; k2 * Po * E
+   // Reactions:
+   photo: P -> Ps; gam * P
+   Ared: Ps + Ao -> Po + Ar; k1 * Ps
+   Aox: Ar + Po + E -> Ao + P + Estar; k2 * Po * E
 
-  // Species initializations:
-  P = 1; Ps = 0; Po = 0;
-  Ar = 0; Ao = 1;
-  Do = 0; Dr = 1;
-  E = 1; Estar = 0;
+   // Species initializations:
+   P = 1; Ps = 0; Po = 0;
+   Ar = 0; Ao = 1;
+   Do = 0; Dr = 1;
+   E = 1; Estar = 0;
+end
+
+model scheme_8_photochem()
+   // Variable initialization:
+   k1 = {k1}
+   k2 = {k2}
+   k3 = {k3}
+   k4 = {k4}
+   gam1 = {exc_rate[0]}
+   gam2 = {exc_rate[1]}
+        
+   // Reactions:
+   photo1: P1 -> P1s; gam1 * P1
+   Ared: P1s + Ao -> P1o + Ar; k1 * P1s
+   Dox: Dr + P1o -> Do + P1; k2 * P1o * Dr
+   
+   photo2: P2 -> P2s; gam2 * P2
+   Bred: P2s + Bo -> P2o + Br; k3 * P2s * Bo
+   Aox: P2o + Ar -> Ao + P2; k4 * P2o * Ar
+
+   // Species initializations:
+   P = 1; Ps = 0; Po = 0;
+   Ar = 0; Ao = 1;
+   Br = 0; Bo = 1;
+   Do = 0; Dr = 1;
+   E = 1; Estar = 0;
 end
 
 model scheme_{scheme}()
