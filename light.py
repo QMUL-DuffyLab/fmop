@@ -34,9 +34,10 @@ import inspect
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import constants
-import utils
 from scipy.constants import h, c, Avogadro, Boltzmann
+
+xlim = [400.0, 2000.0]
+nx = int(xlim[1] - xlim[0])
 
 # AU in metres for stellar spectra
 AU = 149597870700
@@ -45,7 +46,11 @@ Rsol = 6.957E8
 Msol = 1.989E30
 Lsol = 3.828E26
 # (Tstar, Lstar/Lsol, Rstar/Rsol) - 4Gyr isochrones from Isabelle Baraffe
-phz_stars = [
+dt = np.dtype(
+     [('Tstar', np.int64),
+      ('Lstar', np.float64),
+      ('Rstar', np.float64)])
+phz_stars = np.array([
  (2343,  -3.58,  0.099),
  (2811,  -3.06,  0.124),
  (3131,  -2.58,  0.174),
@@ -55,7 +60,7 @@ phz_stars = [
  (5297,  -0.29,  0.850),
  (5697,  -0.03,  0.994),
  (6053,   0.43,  1.491)
- ]
+ ], dtype=dt)
 
 def calculate_phz_radii(Tstar, Lstar, n_radii=20,
         inner="runaway greenhouse", outer="maximum greenhouse"):
@@ -178,13 +183,13 @@ def stellar(**kwargs):
         raise
     output_prefix = f"stellar_{T:4d}K_a_{a:6.4f}AU"
     a *= AU # convert to metres
-    lambdas = np.linspace(*constants.x_lim, constants.nx)
+    lambdas = np.linspace(xlim, nx)
     # spectral irradiance (W m^{-2} nm^{-1})
     lambdas *= 1e-9 # convert to SI
     sp = 1.0E-9 * np.pi * ((2.0 * h * c**2 / lambdas**5.0)
     / (np.exp(h * c / (lambdas * Boltzmann * T)) -1.))
     # irradiance at distance a
-    irr = sp * (R / a)**2
+    irr = (1.0 - att) * sp * (R / a)**2
     return np.column_stack((lambdas * 1e9, irr)), output_prefix
     
 def gaussian(**kwargs):
@@ -206,7 +211,7 @@ def gaussian(**kwargs):
         raise
     # this will be a mess if these are lists
     output_prefix = f"gauss_{a}_{mu}_{sigma}_{intensity}"
-    lambdas = np.linspace(*constants.x_lim, constants.nx)
+    lambdas = np.linspace(xlim, nx)
     gauss = utils.gauss(lambdas, mu, sigma, a)
     return np.column_stack((lambdas, gauss)), output_prefix
 
@@ -361,12 +366,25 @@ def spectrum_setup(spectrum_type, **kwargs):
     if "output_dir" in kwargs:
         outdir = kwargs["output_dir"]
     else:
-        outdir = constants.output_dir
+        outdir = "out"
     outdir = os.path.join(outdir, f"{output_prefix}")
     os.makedirs(outdir, exist_ok=True)
     filename = os.path.join(outdir, "spectrum.txt")
     np.savetxt(filename, spectrum)
     return filename
+
+def stellar_hz_midpoint(Tstar):
+    '''
+    convenience function to return a stellar spectrum for a star
+    with effective temperature Tstar at the midpoint of its HZ.
+    '''
+    temps = phz_stars['Tstar']
+    if Tstar not in temps:
+        raise KeyError("light.stellar_hz_midpoint: incorrect Tstar given.")
+    st = phz_stars[np.nonzero(temps == Tstar)][0]
+    radii = calculate_phz_radii(st['Tstar'], st['Lstar'], n_radii=2)
+    return stellar(Tstar=st['Tstar'], Rstar=st['Rstar'],
+            a=(radii[0]+radii[1])/2., attenuation=0.0)
 
 def load_spectrum(filename):
     '''
@@ -407,7 +425,7 @@ def check(spectra_dicts):
     outputs the plots using the output prefix that'll be generated as well.
     '''
     zipped = build(spectra_dicts)
-    outdir = os.path.join(constants.output_dir, "input_spectra")
+    outdir = os.path.join("out", "input_spectra")
     os.makedirs(outdir, exist_ok=True)
     for spectrum, out_pref in zipped:
         np.savetxt(os.path.join(outdir,
@@ -415,7 +433,7 @@ def check(spectra_dicts):
         fig, ax = plt.subplots(figsize=(12, 8))
         plt.plot(spectrum[:, 0], spectrum[:, 1])
         ax.set_xlabel("wavelength (nm)")
-        ax.set_xlim(constants.x_lim)
+        ax.set_xlim(xlim)
         ax.set_ylabel(r'intensity')
         ax.set_title(out_pref)
         fig.savefig(os.path.join(outdir,

@@ -20,55 +20,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 import roadrunner
 from scipy.constants import h, c, e, Avogadro, Boltzmann
+import light
 
 Temperature = 300
 hcnm = (h * c) / (1.0E-9)
 beta_cm = 1.0 / (Boltzmann * Temperature * (1. / (100.0 * c))) # in wavenumbers
 beta_ev = 1.0 / (Boltzmann * Temperature / e) # in eV
+ten_kbt = 0.26
 
-def stellar(**kwargs):
-    '''
-    Generate irradiance for arbitrary star at arbitrary distance.
-    kwargs:
-    - Tstar:       temperature of star in K
-    - Rstar:       radius of star in units of solar radius
-    - a:           orbital distance (semi-major axis) in AU
-    - attenuation: attenuation factor (should be in [0, 1])
-    '''
-    try:
-        T = kwargs["Tstar"]
-        R = kwargs["Rstar"] * Rsol
-        a = kwargs["a"]
-        att = kwargs["attenuation"]
-    except KeyError:
-        print("Invalid kwargs in light.stellar()")
-        print("Expected: 'Tstar', 'Rstar', 'a', 'attenuation'")
-        print(f"Got: {kwargs}")
-        raise
-    output_prefix = f"stellar_{T:4d}K_a_{a:6.4f}AU"
-    a *= AU # convert to metres
-    lambdas = np.linspace(*xlim, nx)
-    # spectral irradiance (W m^{-2} nm^{-1})
-    lambdas *= 1e-9 # convert to SI
-    sp = 1.0E-9 * np.pi * ((2.0 * h * c**2 / lambdas**5.0)
-    / (np.exp(h * c / (lambdas * Boltzmann * T)) -1.))
-    # irradiance at distance a
-    irr = (1.0 - att) * sp * (R / a)**2
-    return np.column_stack((lambdas * 1e9, irr)), output_prefix
-
-def micromole_in_region(spectrum, lower, upper):
-    '''
-    calculate the light intensity in micromoles over the wavelength
-    range (lower, upper). assumes nm, but since all our spectra are
-    given in nm that shouldn't matter. can use this to increase or
-    decrease light intensity in a given range as much as we like
-    '''
-    muM = 0.0
-    for row in spectrum:
-        if row[0] >= lower and row[0] <= upper:
-            e_per_photon = h * c / (row[0] * 1e-9)
-            muM += row[1] / e_per_photon
-    return 1e6 * (muM / Avogadro)
+Tstar = 2343
+spectrum, output_prefix = light.stellar_hz_midpoint(Tstar)
 
 def estar_stoi(dg_donor, dg_acceptor):
     return np.floor(-(dg_donor - dg_acceptor) / beta_ev)
@@ -101,48 +62,32 @@ def detailed_balance(e1, e2, k12, k21):
 xlim = [400.0, 2000.0]
 nx = int(xlim[1] - xlim[0])
 
-# AU in metres for stellar spectra
-AU = 149597870700
-
-Rsol = 6.957E8
-Msol = 1.989E30
-Lsol = 3.828E26
-# (Tstar, Lstar/Lsol, Rstar/Rsol) - 4Gyr isochrones from Isabelle Baraffe
-phz_stars = [
- (2343,  -3.58,  0.099),
- (2811,  -3.06,  0.124),
- (3131,  -2.58,  0.174),
- (3416,  -1.97,  0.297),
- (3680,  -1.45,  0.465),
- (4418,  -0.85,  0.646),
- (5297,  -0.29,  0.850),
- (5697,  -0.03,  0.994),
- (6053,   0.43,  1.491)
- ]
-
 dg_h2o = -5.10 # in eV
 dg_co2 = -3.85 # in eV
+dg_a = -4.475 # halfway between h2o and co2, for schemes with one
+dg_b = -4.27 # 1/3 between
+dg_c = -4.68 # 2/3 between
 
-'''
-NB: i think it's easiest to just keep track of the required
-wavelength of light manually, rather than trying to figure it out
-programatically at runtime. honestly this might end up being a dict of
-dicts, again. 
-```
-scheme_params = {
-    "scheme1": {"dg_gamma": ev_nm(611.0), ...}, 
-    "scheme2": {"dg_gamma": ev_nm(541.0), ...} 
-}
-```
-etc.
-'''
-
-dg_gamma = {
-    "1": ev_nm(611.0),
-    "2": ev_nm(541.0),
-    "3": ev_nm(611.0),
-    "4": ev_nm(1192.0),
+dg_p = { # limit for the integral to get excitation rate
+    "1": [ev_nm(611.0)],
+    "2": [ev_nm(541.0)],
+    "3": [ev_nm(611.0)],
+    "4": [ev_nm(1192.0)],
     "5": [ev_nm(611.0), ev_nm(1192.0)],
+    "6": [ev_nm(611.0), ev_nm(1192.0)],
+    "7": [ev_nm(611.0), ev_nm(1192.0)],
+    "8": [ev_nm(611.0), ev_nm(1192.0)],
+    }
+
+dg_gamma = { # reddest usable wavelength of light
+    "1": [ev_nm(611.0)],
+    "2": [ev_nm(541.0)],
+    "3": [ev_nm(611.0)],
+    "4": [ev_nm(1192.0)],
+    "5": [ev_nm(611.0), ev_nm(1192.0)],
+    "6": [ev_nm(611.0), ev_nm(1192.0)],
+    "7": [ev_nm(611.0), ev_nm(1192.0)],
+    "8": [ev_nm(611.0), ev_nm(1192.0)],
     }
 
 estoi = estar_stoi(dg_h2o, dg_co2)
