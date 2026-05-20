@@ -4,42 +4,27 @@ Created on Mon May 11 14:33:16 2026
 
 @author: callum
 
-TO DO:
-    - figure out the workflow. there are various parameters that are
-    scheme-dependent (e.g. the photon energy in some schemes, where
-    the number of reactions is already fixed), 
-    and others that are free even within a scheme (e.g. the redox 
-    potentials of intermediate donors or acceptors). How do I code that
-    up in a coherent way?
+this code should eventually take some user-defined parameters
+that correspond to one of the possible photosynthetic schemes
+we've dreamt up, and then set up a tellurium model for that
+scheme and run it. ultimately we want to rank these schemes in some way
+and investigate whether terrestrial oxygenic photosynthesis is a "better"
+or more robust method than others.
+
+at the moment it does not really do this though, because the schemes
+all take different parameters and i haven't sorted out all the details yet
 """
 
 import tellurium as te
 import numpy as np
 import matplotlib.pyplot as plt
 import roadrunner
-from scipy.constants import h, c, Avogadro, Boltzmann
+from scipy.constants import h, c, e, Avogadro, Boltzmann
 
-xlim = [400.0, 2000.0]
-nx = int(xlim[1] - xlim[0])
-
-# AU in metres for stellar spectra
-AU = 149597870700
-
-Rsol = 6.957E8
-Msol = 1.989E30
-Lsol = 3.828E26
-# (Tstar, Lstar/Lsol, Rstar/Rsol) - 4Gyr isochrones from Isabelle Baraffe
-phz_stars = [
- (2343,  -3.58,  0.099),
- (2811,  -3.06,  0.124),
- (3131,  -2.58,  0.174),
- (3416,  -1.97,  0.297),
- (3680,  -1.45,  0.465),
- (4418,  -0.85,  0.646),
- (5297,  -0.29,  0.850),
- (5697,  -0.03,  0.994),
- (6053,   0.43,  1.491)
- ]
+Temperature = 300
+hcnm = (h * c) / (1.0E-9)
+beta_cm = 1.0 / (Boltzmann * Temperature * (1. / (100.0 * c))) # in wavenumbers
+beta_ev = 1.0 / (Boltzmann * Temperature / e) # in eV
 
 def stellar(**kwargs):
     '''
@@ -85,25 +70,21 @@ def micromole_in_region(spectrum, lower, upper):
             muM += row[1] / e_per_photon
     return 1e6 * (muM / Avogadro)
 
-beta_ev = 0.24 # sort this out properly
-e_donor    = -5.10 # in eV
-e_acceptor = -3.85 # in eV
-estoi = np.floor(-(e_donor - e_acceptor) / beta_ev)
-print(f"E* stoichiometry: {estoi}")
+def estar_stoi(dg_donor, dg_acceptor):
+    return np.floor(-(dg_donor - dg_acceptor) / beta_ev)
 
-scheme = "1"
+def photon_gap(dg_donor, dg_acceptor, n_steps):
+    return dg_acceptor - dg_donor + n_steps * beta_ev
 
-period = 100
-intensity = 10
-cycles = 10
+@np.vectorize
+def ev_nm(x):
+    ''' convert eV to nm and vice-versa '''
+    return (hcnm / e) * (1.0 / x)
 
-k_resp = 1
-k_resp_back = 1
-k1 = 1
-k2 = 1
-k_day = 1
-k_night = 1
-k_maintenance = 1
+@np.vectorize
+def nm_wvn(l):
+    ''' convert nm to wavenumber in cm^{-1} '''
+    return 1.0 / (1e-7 * l)
 
 def detailed_balance(e1, e2, k12, k21):
     '''
@@ -116,6 +97,70 @@ def detailed_balance(e1, e2, k12, k21):
     elif e2 > e1:
         k12 *= (1. / fac)
     return k12, k21
+
+xlim = [400.0, 2000.0]
+nx = int(xlim[1] - xlim[0])
+
+# AU in metres for stellar spectra
+AU = 149597870700
+
+Rsol = 6.957E8
+Msol = 1.989E30
+Lsol = 3.828E26
+# (Tstar, Lstar/Lsol, Rstar/Rsol) - 4Gyr isochrones from Isabelle Baraffe
+phz_stars = [
+ (2343,  -3.58,  0.099),
+ (2811,  -3.06,  0.124),
+ (3131,  -2.58,  0.174),
+ (3416,  -1.97,  0.297),
+ (3680,  -1.45,  0.465),
+ (4418,  -0.85,  0.646),
+ (5297,  -0.29,  0.850),
+ (5697,  -0.03,  0.994),
+ (6053,   0.43,  1.491)
+ ]
+
+dg_h2o = -5.10 # in eV
+dg_co2 = -3.85 # in eV
+
+'''
+NB: i think it's easiest to just keep track of the required
+wavelength of light manually, rather than trying to figure it out
+programatically at runtime. honestly this might end up being a dict of
+dicts, again. 
+```
+scheme_params = {
+    "scheme1": {"dg_gamma": ev_nm(611.0), ...}, 
+    "scheme2": {"dg_gamma": ev_nm(541.0), ...} 
+}
+```
+etc.
+'''
+
+dg_gamma = {
+    "1": ev_nm(611.0),
+    "2": ev_nm(541.0),
+    "3": ev_nm(611.0),
+    "4": ev_nm(1192.0),
+    "5": [ev_nm(611.0), ev_nm(1192.0)],
+    }
+
+estoi = estar_stoi(dg_h2o, dg_co2)
+print(f"E* stoichiometry: {estoi}")
+
+scheme = "1"
+
+period = 100
+intensity = 5
+cycles = 10
+
+k_resp = 1
+k_resp_back = 1
+k1 = 1
+k2 = 1
+k_day = 1
+k_night = 1
+k_maintenance = 1
 
 r = te.loada(f"""
 function square_wave(t, period, intensity)
