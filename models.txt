@@ -1,0 +1,140 @@
+# Here are a bunch of antimony models which correspond to our various
+# schemes of oxygenic photosynthesis. The idea is that they each expose
+# the various rate constants that we set in main.py and then we only
+# have to use one f-string of a few lines there.
+
+function square_wave(t, period, intensity)
+    intensity * (1 - (floor(t / period) - 2 * floor(floor(t / period) / 2)))
+end
+
+model photoexcitation(gam, P, Ps)
+    P -> Ps; gam * P
+end
+
+model respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
+    fw: Do + Cr + 5 E -> $Dr + $Co + 5 Estar; kr*Do*Cr*(E^5);
+    bw: $Dr + $Co + 5 Estar -> Do + Cr + 5 E; kb*(Estar^5);
+end
+
+model storage(kd, kn, Cr, Cstore)
+    # if we want a day-night storage release cycle we can do
+    # gam := square_wave(t, period, 1)
+    # and then replace kd -> kd * gam; kn -> kn * (1 - gam)
+    Cr -> Cstore; kd * Cr
+    Cstore -> Cr; kn * Cstore
+end
+
+model fuckoff(piss, shit, vomit)
+    shit -> vomit; piss * shit * Cr
+end
+
+model scheme_1(gamma, k1, k2, kr, kb, k_m, kd, kn)
+    // Reactions:
+    P: photoexcitation(gamma, P, Ps)
+    Cred: Ps + $Co -> Po + Cr; k1 * Ps
+    Dox: $Dr + Po -> Do + P; k2 * Po
+    R: respiration(kr, kb, Do, Dr, Co, Cr, E, Estar, n)
+    M: maintenance(k_m, Estar, E)
+    S: storage(kd, kn, Cr, Cstore)
+
+    // Species initializations:
+    P = 1; Ps = 0; Po = 0;
+    Cr = 0; Co = 1; Cstore = 0;
+    Do = 0; Dr = 1;
+    E = 1; Estar = 0;
+end
+
+# model scheme_2_photochem()
+#    // Variable initialization:
+#    k1 = {k1}
+#    k2 = {k2}
+#    gam = {exc_rate[0]}
+#   
+#    // Reactions:
+#    photo: P -> Ps; gam * P
+#    Cred: Ps + $Co -> Po + Cr + Estar; k1 * Ps
+#    Dox: $Dr + Po -> Do + P; k2 * Po
+# 
+#    // Species initializations:
+#    P = 1; Ps = 0; Po = 0;
+#    Cr = 0; Co = 1;
+#    Do = 0; Dr = 1;
+#    Estar = 0;
+# end
+# 
+# model scheme_2b_photochem()
+#    // Variable initialization:
+#    k1 = {k1}
+#    k2 = {k2}
+#    gam = {exc_rate[0]}
+#   
+#    // Reactions:
+#    photo: P -> Ps; gam * P
+#    Cred: Ps + $Co -> Po + Cr; k1 * Ps
+#    Dox: $Dr + Po + E -> Do + P + Estar; k2 * Po * E
+# 
+#    // Species initializations:
+#    P = 1; Ps = 0; Po = 0;
+#    Cr = 0; Co = 1;
+#    Do = 0; Dr = 1;
+#    E = 1; Estar = 0;
+# end
+# 
+# model scheme_3_photochem()
+#    // Variable initialization:
+#    k1 = {k1}
+#    k2 = {k2}
+#    gam = {exc_rate[0]}
+#   
+#    // Reactions:
+#    photo: P -> Ps; gam * P
+#    Ared: Ps + Ao -> Po + Ar; k1 * Ps
+#    Aox: Ar + Po + E -> Ao + P + Estar; k2 * Po * E
+# 
+#    // Species initializations:
+#    P = 1; Ps = 0; Po = 0;
+#    Ar = 0; Ao = 1;
+#    Do = 0; Dr = 1;
+#    E = 1; Estar = 0;
+# end
+# 
+# model scheme_8_photochem()
+#    // Variable initialization:
+#    k1 = {k1}
+#    k2 = {k2}
+#    k3 = {k3}
+#    k4 = {k4}
+#    gam1 = {exc_rate[0]}
+#    gam2 = {exc_rate[1]}
+#         
+#    // Reactions:
+#    photo1: P1 -> P1s; gam1 * P1
+#    Ared: P1s + Ao -> P1o + Ar; k1 * P1s
+#    Dox: Dr + P1o -> Do + P1; k2 * P1o * Dr
+#    
+#    photo2: P2 -> P2s; gam2 * P2
+#    Bred: P2s + Bo -> P2o + Br; k3 * P2s * Bo
+#    Aox: P2o + Ar -> Ao + P2; k4 * P2o * Ar
+# 
+#    // Species initializations:
+#    P = 1; Ps = 0; Po = 0;
+#    Ar = 0; Ao = 1;
+#    Br = 0; Bo = 1;
+#    Do = 0; Dr = 1;
+#    E = 1; Estar = 0;
+# end
+# 
+# model scheme_{scheme}()
+#     P: scheme_{scheme}_photochem()
+#     R: resp()
+#     M: maintenance()
+#     //S: storage()
+#     P.Do is R.Do
+#     //P.Cr is R.Cr
+#     P.Estar is R.Estar
+#     P.E is R.E
+#     M.E is R.E
+#     M.Estar is R.Estar
+#     //S.Cr is R.Cr
+#     M.Cr is R.Cr
+# end

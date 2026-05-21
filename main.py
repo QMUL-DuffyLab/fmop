@@ -32,32 +32,12 @@ Tstar = 2343
 spectrum, output_prefix = light.stellar_hz_midpoint(Tstar)
 
 def estar_stoi(dg_donor, dg_acceptor):
-    return np.floor(-(dg_donor - dg_acceptor) / beta_ev)
-
-def photon_gap(dg_donor, dg_acceptor, n_steps):
-    return dg_acceptor - dg_donor + n_steps * beta_ev
+    return np.floor(-(dg_donor - dg_acceptor) / ten_kbt)
 
 @np.vectorize
 def ev_nm(x):
     ''' convert eV to nm and vice-versa '''
     return (hcnm / e) * (1.0 / x)
-
-@np.vectorize
-def nm_wvn(l):
-    ''' convert nm to wavenumber in cm^{-1} '''
-    return 1.0 / (1e-7 * l)
-
-def detailed_balance(e1, e2, k12, k21):
-    '''
-    apply a Boltzmann penalty to an uphill rate, leaving the
-    downhill rate unchanged. check this and also Beta definition
-    '''
-    fac = np.exp(beta_ev * (e2 - e1))
-    if e1 > e2:
-        k21 *= fac
-    elif e2 > e1:
-        k12 *= (1. / fac)
-    return k12, k21
 
 xlim = [400.0, 2000.0]
 nx = int(xlim[1] - xlim[0])
@@ -68,7 +48,11 @@ dg_a = -4.475 # halfway between h2o and co2, for schemes with one
 dg_b = -4.27 # 1/3 between
 dg_c = -4.68 # 2/3 between
 
-dg_p = { # limit for the integral to get excitation rate
+'''
+this was originally the limit for the denominator when calculating
+excitation rates, but we have decided instead to just use the ultimate
+donor and acceptor as limits to put them all on the same playing field
+dg_ps = {
     "1": [dg_co2 - dg_h2o],
     "2": [dg_co2 - dg_h2o],
     "3": [0.99], # see eq. 44 of overleaf
@@ -78,12 +62,16 @@ dg_p = { # limit for the integral to get excitation rate
     "7": [(dg_co2 - dg_h2o)/2.0, (dg_co2 - dg_h2o)/2.0],
     "8": [(dg_co2 - dg_h2o)/3.0, (dg_co2 - dg_h2o)/3.0],
     }
+'''
+
+dg_p = dg_co2 - dg_h2o
+total_flux = light.micromole_in_region(spectrum, 400, ev_nm(dg_p))
 
 dg_gamma = { # reddest usable wavelength of light
-    "1": [ev_nm(611.0)],
-    "2": [ev_nm(541.0)],
-    "3": [ev_nm(611.0)],
-    "4": [ev_nm(1192.0)],
+    "1": [ev_nm(611.0), np.nan],
+    "2": [ev_nm(541.0), np.nan],
+    "3": [ev_nm(611.0), np.nan],
+    "4": [ev_nm(1192.0), np.nan],
     "5": [ev_nm(611.0), ev_nm(1192.0)],
     "6": [ev_nm(701.0), ev_nm(1192.0)],
     "7": [ev_nm(882.0), ev_nm(882.0)],
@@ -96,13 +84,11 @@ print(f"E* stoichiometry: {estoi}")
 scheme = "1"
 
 exc_rate = []
-for dgp, dgg in zip(dg_p[scheme], dg_gamma[scheme]):
-    tf = light.micromole_in_region(spectrum, 400, ev_nm(dgp))
+for dgg in dg_gamma[scheme]:
     uf = light.micromole_in_region(spectrum, 400, ev_nm(dgg))
-    exc_rate.append(uf/tf)
+    exc_rate.append(uf/total_flux)
     
-period = 100
-intensity = exc_rate
+period = 10 # if day/night cycle is turned on
 cycles = 10
 
 k_resp = 1
@@ -153,14 +139,14 @@ model maintenance()
     km = {k_maintenance}
     
     //reactions
-    Estar -> E; km * Estar
+    Estar -> E; km * Estar * Cr
 end
 
 model scheme_1_photochem()
    // Variable initialization:
    k1 = {k1}
    k2 = {k2}
-   //gam := square_wave(time, {period}, {intensity})
+   //gam := square_wave(time, {period}, {exc_rate[0]})
    gam = {exc_rate[0]}
   
    // Reactions:
@@ -261,20 +247,26 @@ model scheme_{scheme}()
     //S: storage()
     P.Do is R.Do
     P.Cr is R.Cr
+    //P.Estar is R.Estar
+    //P.E is R.E
     M.E is R.E
     M.Estar is R.Estar
     //S.Cr is R.Cr
-    //M.Cr is R.Cr
+    M.Cr is R.Cr
 end
 
 """)
 result = r.simulate(0, cycles*period, cycles*period + 1)
 r.plot(result, logy=False, ylim=[0.001, 1.2 * np.max(result[:, 1:])])
+
 '''
-fig, ax = plt.subplots()
-ax.plot(result['time'], result['[R_Cr]'], label='[R_Cr]', color='r')
-ax.plot(result['time'], result['[R_Estar]'], label='[E*]', color='k')
-ax.legend()
-plt.show()
-plt.close()
+s = te.loada(f"""
+import "models.txt"
+
+model scheme()
+  scheme_1({exc_rate[0]}, {k1}, {k2}, {k_resp}, {k_resp_back}, {k_maintenance}, {k_day}, {k_night}, {estoi})
+end
+""")
+#result = s.simulate(0, cycles*period, cycles*period + 1)
+#s.plot(result, ylim=[0.001, 1.2 * np.max(result[:, 1:])])
 '''
