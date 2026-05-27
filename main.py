@@ -28,41 +28,22 @@ beta_cm = 1.0 / (Boltzmann * Temperature * (1. / (100.0 * c))) # in wavenumbers
 beta_ev = 1.0 / (Boltzmann * Temperature / e) # in eV
 ten_kbt = 0.26
 
-Tstar = 2343
-spectrum, output_prefix = light.stellar_hz_midpoint(Tstar)
+xlim = [400.0, 2000.0]
+nx = int(xlim[1] - xlim[0])
 
-def estar_stoi(dg_donor, dg_acceptor):
-    return np.floor(-(dg_donor - dg_acceptor) / ten_kbt)
+def estar_stoi(dg_donor, dg_acceptor, unit):
+    return np.round(-(dg_donor - dg_acceptor) / unit)
 
 @np.vectorize
 def ev_nm(x):
     ''' convert eV to nm and vice-versa '''
     return (hcnm / e) * (1.0 / x)
 
-xlim = [400.0, 2000.0]
-nx = int(xlim[1] - xlim[0])
-
 dg_h2o = -5.10 # in eV
 dg_co2 = -3.85 # in eV
-dg_a = -4.475 # halfway between h2o and co2, for schemes with one
-dg_b = -4.27 # 1/3 between
-dg_c = -4.68 # 2/3 between
 
-'''
-this was originally the limit for the denominator when calculating
-excitation rates, but we have decided instead to just use the ultimate
-donor and acceptor as limits to put them all on the same playing field
-dg_ps = {
-    "1": [dg_co2 - dg_h2o],
-    "2": [dg_co2 - dg_h2o],
-    "3": [0.99], # see eq. 44 of overleaf
-    "4": [ev_nm(1192.0)],# unclear to me what this is
-    "5": [ev_nm(611.0), ev_nm(1192.0)],
-    "6": [ev_nm(611.0), ev_nm(1192.0)],
-    "7": [(dg_co2 - dg_h2o)/2.0, (dg_co2 - dg_h2o)/2.0],
-    "8": [(dg_co2 - dg_h2o)/3.0, (dg_co2 - dg_h2o)/3.0],
-    }
-'''
+Tstar = 2343
+spectrum, output_prefix = light.stellar_hz_midpoint(Tstar)
 
 dg_p = dg_co2 - dg_h2o
 total_flux = light.micromole_in_region(spectrum, 400, ev_nm(dg_p))
@@ -72,25 +53,35 @@ dg_gamma = { # reddest usable wavelength of light
     "2": [ev_nm(541.0), np.nan],
     "3": [ev_nm(611.0), np.nan],
     "4": [ev_nm(1192.0), np.nan],
-    "5": [ev_nm(611.0), ev_nm(1192.0)],
-    "6": [ev_nm(701.0), ev_nm(1192.0)],
-    "7": [ev_nm(882.0), ev_nm(882.0)],
-    "8": [ev_nm(969.0), ev_nm(969.0)],
+    "5a": [5 * ten_kbt, np.nan],
+    "5b": [5 * ten_kbt, np.nan],
+    "6": [6.8 * ten_kbt, 4 * ten_kbt],
+    "7a": [ev_nm(882.0), ev_nm(882.0)],
+    "7b": [ev_nm(744.0), ev_nm(882.0)],
+    "7c": [ev_nm(744.0), ev_nm(744.0)],
+    "7d": [4 * ten_kbt, dg_p + 3 * ten_kbt],
+    "8a": [ev_nm(969.0), ev_nm(969.0)],
+    "8b": [ev_nm(805.0), ev_nm(969.0)],
+    "8c": [ev_nm(805.0), ev_nm(805.0)],
     }
 
-estoi = estar_stoi(dg_h2o, dg_co2)
+estoi = estar_stoi(dg_h2o, dg_co2, ten_kbt)
 print(f"E* stoichiometry: {estoi}")
 
-scheme = "1"
+scheme = "7b"
+print(f"Scheme {scheme}")
 
 exc_rate = []
 for dgg in dg_gamma[scheme]:
     uf = light.micromole_in_region(spectrum, 400, ev_nm(dgg))
     exc_rate.append(uf/total_flux)
     
+print(f"Excitation rate(s): {exc_rate}")
+    
 period = 10 # if day/night cycle is turned on
 cycles = 10
 
+dcr_stoi = 5
 k_resp = 1
 k_resp_back = 1
 k1 = 1
@@ -100,121 +91,221 @@ k4 = 1
 k_day = 1
 k_night = 1
 k_maintenance = 1
+k_cr = 1
 
 r = te.loada(f"""
 function square_wave(t, period, intensity)
   intensity * (1 - (floor(t / period) - 2 * floor(floor(t / period) / 2)))
 end
 
-model resp()
-    // Variables
-    kr = {k_resp} // this basically controls how much Cr you accumulate
-    kb = {k_resp_back} // add detailed balance!!
-    
-    // Reactions
-    fw: Do + Cr + {estoi} E -> $Dr + $Co + {estoi} Estar; kr*Do*Cr*(E^{estoi});
-    bw: $Dr + $Co + {estoi} Estar -> Do + Cr + {estoi} E; kb*(Estar^{estoi});
-    
-    // Initial conditions
-    Do = 0; 
-    Cr = 0;
-    E = 1; Estar = 0;
-end
-
-model storage()
-    // variables
-    /* gam here is just to tell us when it's day or night;
-    we do not care about the magnitude, hence magnitude 1 */
-    gam := square_wave(time, {period}, 1)
-    kd = {k_day}
-    kn = {k_night}
-    
-    // reactions
-    Cr -> Cstore; kd * Cr
-    Cstore -> Cr; kn * (1 - gam) * Cstore
-end
-
-model maintenance()
-    // variables
-    km = {k_maintenance}
-    
-    //reactions
-    Estar -> E; km * Estar * Cr
-end
-
-model scheme_1_photochem()
+model scheme_1()
    // Variable initialization:
    k1 = {k1}
    k2 = {k2}
-   //gam := square_wave(time, {period}, {exc_rate[0]})
+   // gam := square_wave(time, {period}, {exc_rate[0]})
    gam = {exc_rate[0]}
+   k_m = {k_maintenance}    
+   kr = {k_resp} // this basically controls how much Cr you accumulate
+   kb = {k_resp_back}
+   kd = {k_day}
+   kn = {k_night}
   
    // Reactions:
    photo: P -> Ps; gam * P
    Cred: Ps + $Co -> Po + Cr; k1 * Ps
    Dox: $Dr + Po -> Do + P; k2 * Po
+   M: Estar -> E; k_m * Estar * Cr
+   Rfw: Do + Cr + {estoi} E -> $Dr + $Co + {estoi} Estar; kr*Do*Cr*(E^{estoi});
+   Rbw: $Dr + $Co + {estoi} Estar -> Do + Cr + {estoi} E; kb*(Estar^{estoi});
+   Sfw: Cr -> Cstore; kd * Cr
+   Sbw: Cstore -> Cr; kn * Cstore
 
    // Species initializations:
    P = 1; Ps = 0; Po = 0;
-   Cr = 0; Co = 1;
+   Cr = 0; Co = 1; Cstore = 0;
    Do = 0; Dr = 1;
+   E = 1; Estar = 0;
 end
 
-model scheme_2_photochem()
+model scheme_2()
    // Variable initialization:
    k1 = {k1}
    k2 = {k2}
    gam = {exc_rate[0]}
+   k_m = {k_maintenance}    
+   kr = {k_resp} // this basically controls how much Cr you accumulate
+   kb = {k_resp_back}
+   kd = {k_day}
+   kn = {k_night}
   
    // Reactions:
    photo: P -> Ps; gam * P
-   Cred: Ps + $Co -> Po + Cr + Estar; k1 * Ps
+   Cred: Ps + $Co + E -> Po + Cr + Estar; k1 * Ps
    Dox: $Dr + Po -> Do + P; k2 * Po
+   M: Estar -> E; k_m * Estar * Cr
+   Rfw: Do + Cr + {estoi} E -> $Dr + $Co + {estoi} Estar; kr*Do*Cr*(E^{estoi});
+   Rbw: $Dr + $Co + {estoi} Estar -> Do + Cr + {estoi} E; kb*(Estar^{estoi});
+   Sfw: Cr -> Cstore; kd * Cr
+   Sbw: Cstore -> Cr; kn * Cstore
 
    // Species initializations:
    P = 1; Ps = 0; Po = 0;
-   Cr = 0; Co = 1;
+   Cr = 0; Co = 1; Cstore = 0;
    Do = 0; Dr = 1;
-   Estar = 0;
+   Estar = 0; E = 1;
 end
 
-model scheme_2b_photochem()
+model scheme_2b()
    // Variable initialization:
    k1 = {k1}
    k2 = {k2}
    gam = {exc_rate[0]}
+   k_m = {k_maintenance}    
+   kr = {k_resp} // this basically controls how much Cr you accumulate
+   kb = {k_resp_back}
+   kd = {k_day}
+   kn = {k_night}
   
    // Reactions:
    photo: P -> Ps; gam * P
    Cred: Ps + $Co -> Po + Cr; k1 * Ps
    Dox: $Dr + Po + E -> Do + P + Estar; k2 * Po * E
+   M: Estar -> E; k_m * Estar * Cr
+   Rfw: Do + Cr + {estoi} E -> $Dr + $Co + {estoi} Estar; kr*Do*Cr*(E^{estoi});
+   Rbw: $Dr + $Co + {estoi} Estar -> Do + Cr + {estoi} E; kb*(Estar^{estoi});
+   Sfw: Cr -> Cstore; kd * Cr
+   Sbw: Cstore -> Cr; kn * Cstore
 
    // Species initializations:
    P = 1; Ps = 0; Po = 0;
-   Cr = 0; Co = 1;
+   Cr = 0; Co = 1; Cstore = 0;
    Do = 0; Dr = 1;
-   E = 1; Estar = 0;
+   Estar = 0; E = 1;
 end
 
-model scheme_3_photochem()
+model scheme_3()
    // Variable initialization:
    k1 = {k1}
    k2 = {k2}
    gam = {exc_rate[0]}
+   k_m = {k_maintenance}    
+   kr = {k_resp} // this basically controls how much Cr you accumulate
+   kb = {k_resp_back}
+   kd = {k_day}
+   kn = {k_night}
   
    // Reactions:
    photo: P -> Ps; gam * P
    Ared: Ps + Ao -> Po + Ar; k1 * Ps
    Aox: Ar + Po + E -> Ao + P + Estar; k2 * Po * E
+   M: Estar -> E; k_m * Estar * Cr
+   Rfw: Do + Cr + {estoi} E -> $Dr + $Co + {estoi} Estar; kr*Do*Cr*(E^{estoi});
+   Rbw: $Dr + $Co + {estoi} Estar -> Do + Cr + {estoi} E; kb*(Estar^{estoi});
+   Sfw: Cr -> Cstore; kd * Cr
+   Sbw: Cstore -> Cr; kn * Cstore
 
    // Species initializations:
    P = 1; Ps = 0; Po = 0;
+   Cr = 0; Co = 1; Cstore = 0;
    Ar = 0; Ao = 1;
    Do = 0; Dr = 1;
-   E = 1; Estar = 0;
+   Estar = 0; E = 1;
 end
 
-model scheme_8_photochem()
+model scheme_4()
+   // Variable initialization:
+   k1 = {k1}
+   k2 = {k2}
+   gam = {exc_rate[0]}
+   k_m = {k_maintenance}    
+   kr = {k_resp} // this basically controls how much Cr you accumulate
+   kb = {k_resp_back}
+   kd = {k_day}
+   kn = {k_night}
+   kcr = {k_cr}
+  
+   // Reactions:
+   photo: P -> Ps; gam * P
+   Ared: Ps + Ao -> Po + Ar; k1 * Ps * Ao
+   Dox: $Dr + Po -> Do + P; k2 * Po
+   Cred: Ar + Co + {estoi} Estar -> Ao + Cr + {estoi} E; kcr * Ar * Co * (Estar^{estoi})
+   M: Estar -> E; k_m * Estar * Cr
+   Rfw: Do + Cr + {estoi} E -> $Dr + $Co + {estoi} Estar; kr*Do*Cr*(E^{estoi});
+   Rbw: $Dr + $Co + {estoi} Estar -> Do + Cr + {estoi} E; kb*(Estar^{estoi});
+   Sfw: Cr -> Cstore; kd * Cr
+   Sbw: Cstore -> Cr; kn * Cstore
+
+   // Species initializations:
+   P = 1; Ps = 0; Po = 0;
+   Cr = 0; Co = 1; Cstore = 0;
+   Ar = 0; Ao = 1;
+   Do = 0; Dr = 1;
+   Estar = 0; E = 1;
+end
+
+model scheme_5a()
+   // Variable initialization:
+   k1 = {k1}
+   k2 = {k2}
+   gam = {exc_rate[0]}
+   k_m = {k_maintenance}    
+   kr = {k_resp} // this basically controls how much Cr you accumulate
+   kb = {k_resp_back}
+   kd = {k_day}
+   kn = {k_night}
+   kcr = {k_cr}
+  
+   // Reactions:
+   photo: P -> Ps; gam * P
+   Ared: Ps + Ao + E -> Po + Ar + Estar; k1 * Ps * Ao * E
+   Dox: $Dr + Po -> Do + P; k2 * Po
+   Cred: Ar + Co + {estoi} Estar -> Ao + Cr + {estoi} E; kcr * Ar * Co * (Estar^{estoi})
+   M: Estar -> E; k_m * Estar * Cr
+   Rfw: Do + Cr + {estoi} E -> $Dr + $Co + {estoi} Estar; kr*Do*Cr*(E^{estoi});
+   Rbw: $Dr + $Co + {estoi} Estar -> Do + Cr + {estoi} E; kb*(Estar^{estoi});
+   Sfw: Cr -> Cstore; kd * Cr
+   Sbw: Cstore -> Cr; kn * Cstore
+
+   // Species initializations:
+   P = 1; Ps = 0; Po = 0;
+   Cr = 0; Co = 1; Cstore = 0;
+   Ar = 0; Ao = 1;
+   Do = 0; Dr = 1;
+   Estar = 0; E = 1;
+end
+
+model scheme_5b()
+   // Variable initialization:
+   k1 = {k1}
+   k2 = {k2}
+   gam = {exc_rate[0]}
+   k_m = {k_maintenance}    
+   kr = {k_resp} // this basically controls how much Cr you accumulate
+   kb = {k_resp_back}
+   kd = {k_day}
+   kn = {k_night}
+   kcr = {k_cr}
+  
+   // Reactions:
+   photo: P -> Ps; gam * P
+   Ared: Ps + Ao -> Po + Ar; k1 * Ps * Ao
+   Dox: $Dr + Po + E -> Do + P + Estar; k2 * Po * E
+   Cred: Ar + Co + {estoi} Estar -> Ao + Cr + {estoi} E; kcr * Ar * Co * (Estar^{estoi})
+   M: Estar -> E; k_m * Estar * Cr
+   Rfw: Do + Cr + {estoi} E -> $Dr + $Co + {estoi} Estar; kr*Do*Cr*(E^{estoi});
+   Rbw: $Dr + $Co + {estoi} Estar -> Do + Cr + {estoi} E; kb*(Estar^{estoi});
+   Sfw: Cr -> Cstore; kd * Cr
+   Sbw: Cstore -> Cr; kn * Cstore
+
+   // Species initializations:
+   P = 1; Ps = 0; Po = 0;
+   Cr = 0; Co = 1; Cstore = 0;
+   Ar = 0; Ao = 1;
+   Do = 0; Dr = 1;
+   Estar = 0; E = 1;
+end
+
+model scheme_6()
    // Variable initialization:
    k1 = {k1}
    k2 = {k2}
@@ -222,51 +313,352 @@ model scheme_8_photochem()
    k4 = {k4}
    gam1 = {exc_rate[0]}
    gam2 = {exc_rate[1]}
-        
+   k_m = {k_maintenance}    
+   kr = {k_resp}
+   kb = {k_resp_back}
+   kd = {k_day}
+   kn = {k_night}
+   kcr = {k_cr}
+  
    // Reactions:
    photo1: P1 -> P1s; gam1 * P1
-   Ared: P1s + Ao -> P1o + Ar; k1 * P1s
-   Dox: Dr + P1o -> Do + P1; k2 * P1o * Dr
+   Bred: P1s + Bo -> P1o + Br; k1 * P1s * Bo
+   Dox: P1o + $Dr -> P1 + Do; k2 * P1o
+   
+   photo2: P2 -> P2s; gam2 * P2
+   Ared: P2s + Ao + E -> P2o + Ar + Estar; k3 * P2s * Ao
+   Aox: Ar + P2o -> Ao + P2; k4 * P2o * Ar
+   
+   M: Estar -> E; k_m * Estar * Cr
+   DCF: Br + $Co + {dcr_stoi} Estar -> Bo + Cr + {dcr_stoi} E; kcr * Br * (Estar^{dcr_stoi})
+   
+   Rfw: Do + Cr + {estoi} E -> $Dr + $Co + {estoi} Estar; kr*Do*Cr*(E^{estoi});
+   Rbw: $Dr + $Co + {estoi} Estar -> Do + Cr + {estoi} E; kb*(Estar^{estoi});
+   
+   Sfw: Cr -> Cstore; kd * Cr
+   Sbw: Cstore -> Cr; kn * Cstore
+
+   // Species initializations:
+   P1 = 1; P1s = 0; P1o = 0;
+   P2 = 1; P2s = 0; P2o = 0;
+   Cr = 0; Co = 1; Cstore = 0;
+   Ar = 0; Ao = 1;
+   Bo = 1; Br = 0;
+   Do = 0; Dr = 1;
+   Estar = 0; E = 1;
+end
+
+model scheme_7a()
+   // Variable initialization:
+   k1 = {k1}
+   k2 = {k2}
+   k3 = {k3}
+   k4 = {k4}
+   gam1 = {exc_rate[0]}
+   gam2 = {exc_rate[1]}
+   k_m = {k_maintenance}    
+   kr = {k_resp}
+   kb = {k_resp_back}
+   kd = {k_day}
+   kn = {k_night}
+   kcr = {k_cr}
+  
+   // Reactions:
+   photo1: P1 -> P1s; gam1 * P1
+   Ared: P1s + Ao -> P1o + Ar; k1 * P1s * Ao
+   Dox: P1o + $Dr -> P1 + Do; k2 * P1o
+   
+   photo2: P2 -> P2s; gam2 * P2
+   Cred: P2s + $Co -> P2o + Cr; k3 * P2s * Co
+   Aox: Ar + P2o -> Ao + P2; k4 * P2o * Ar
+   
+   M: Estar -> E; k_m * Estar * Cr
+   
+   Rfw: Do + Cr + {estoi} E -> $Dr + $Co + {estoi} Estar; kr*Do*Cr*(E^{estoi});
+   Rbw: $Dr + $Co + {estoi} Estar -> Do + Cr + {estoi} E; kb*(Estar^{estoi});
+   
+   Sfw: Cr -> Cstore; kd * Cr
+   Sbw: Cstore -> Cr; kn * Cstore
+
+   // Species initializations:
+   P1 = 1; P1s = 0; P1o = 0;
+   P2 = 1; P2s = 0; P2o = 0;
+   Cr = 0; Co = 1; Cstore = 0;
+   Ar = 0; Ao = 1;
+   Do = 0; Dr = 1;
+   Estar = 0; E = 1;
+end
+
+model scheme_7b()
+   // Variable initialization:
+   k1 = {k1}
+   k2 = {k2}
+   k3 = {k3}
+   k4 = {k4}
+   gam1 = {exc_rate[0]}
+   gam2 = {exc_rate[1]}
+   k_m = {k_maintenance}    
+   kr = {k_resp}
+   kb = {k_resp_back}
+   kd = {k_day}
+   kn = {k_night}
+   kcr = {k_cr}
+  
+   // Reactions:
+   photo1: P1 -> P1s; gam1 * P1
+   Ared: P1s + Ao + E -> P1o + Ar + Estar; k1 * P1s * Ao * E
+   Dox: P1o + $Dr -> P1 + Do; k2 * P1o
+   
+   photo2: P2 -> P2s; gam2 * P2
+   Cred: P2s + $Co -> P2o + Cr; k3 * P2s * Co
+   Aox: Ar + P2o -> Ao + P2; k4 * P2o * Ar
+   
+   M: Estar -> E; k_m * Estar * Cr
+   
+   Rfw: Do + Cr + {estoi} E -> $Dr + $Co + {estoi} Estar; kr*Do*Cr*(E^{estoi});
+   Rbw: $Dr + $Co + {estoi} Estar -> Do + Cr + {estoi} E; kb*(Estar^{estoi});
+   
+   Sfw: Cr -> Cstore; kd * Cr
+   Sbw: Cstore -> Cr; kn * Cstore
+
+   // Species initializations:
+   P1 = 1; P1s = 0; P1o = 0;
+   P2 = 1; P2s = 0; P2o = 0;
+   Cr = 0; Co = 1; Cstore = 0;
+   Ar = 0; Ao = 1;
+   Do = 0; Dr = 1;
+   Estar = 0; E = 1;
+end
+
+model scheme_7c()
+   // Variable initialization:
+   k1 = {k1}
+   k2 = {k2}
+   k3 = {k3}
+   k4 = {k4}
+   gam1 = {exc_rate[0]}
+   gam2 = {exc_rate[1]}
+   k_m = {k_maintenance}    
+   kr = {k_resp}
+   kb = {k_resp_back}
+   kd = {k_day}
+   kn = {k_night}
+   kcr = {k_cr}
+  
+   // Reactions:
+   photo1: P1 -> P1s; gam1 * P1
+   Ared: P1s + Ao + E -> P1o + Ar + Estar; k1 * P1s * Ao * E
+   Dox: P1o + $Dr -> P1 + Do; k2 * P1o
+   
+   photo2: P2 -> P2s; gam2 * P2
+   Cred: P2s + $Co + E -> P2o + Cr + Estar; k3 * P2s * Co
+   Aox: Ar + P2o -> Ao + P2; k4 * P2o * Ar
+   
+   M: Estar -> E; k_m * Estar * Cr
+   
+   Rfw: Do + Cr + {estoi} E -> $Dr + $Co + {estoi} Estar; kr*Do*Cr*(E^{estoi});
+   Rbw: $Dr + $Co + {estoi} Estar -> Do + Cr + {estoi} E; kb*(Estar^{estoi});
+   
+   Sfw: Cr -> Cstore; kd * Cr
+   Sbw: Cstore -> Cr; kn * Cstore
+
+   // Species initializations:
+   P1 = 1; P1s = 0; P1o = 0;
+   P2 = 1; P2s = 0; P2o = 0;
+   Cr = 0; Co = 1; Cstore = 0;
+   Ar = 0; Ao = 1;
+   Do = 0; Dr = 1;
+   Estar = 0; E = 1;
+end
+
+model scheme_7d()
+   // Variable initialization:
+   k1 = {k1}
+   k2 = {k2}
+   k3 = {k3}
+   k4 = {k4}
+   gam1 = {exc_rate[0]}
+   gam2 = {exc_rate[1]}
+   k_m = {k_maintenance}    
+   kr = {k_resp}
+   kb = {k_resp_back}
+   kd = {k_day}
+   kn = {k_night}
+   kcr = {k_cr}
+  
+   // Reactions:
+   photo1: P1 -> P1s; gam1 * P1
+   Ared: P1s + Ao -> P1o + Ar; k1 * P1s * Ao
+   Aoxcyc: P1o + Ar + E -> P1 + Ao + Estar; k2 * P1o * Ar * E
+   
+   photo2: P2 -> P2s; gam2 * P2
+   Cred: P2s + $Co -> P2o + Cr; k3 * P2s * Co
+   Dox: $Dr + P2o -> Do + P2; k4 * P2o * Dr
+   
+   M: Estar -> E; k_m * Estar * Cr
+   
+   Rfw: Do + Cr + {estoi} E -> $Dr + $Co + {estoi} Estar; kr*Do*Cr*(E^{estoi});
+   Rbw: $Dr + $Co + {estoi} Estar -> Do + Cr + {estoi} E; kb*(Estar^{estoi});
+   
+   Sfw: Cr -> Cstore; kd * Cr
+   Sbw: Cstore -> Cr; kn * Cstore
+
+   // Species initializations:
+   P1 = 1; P1s = 0; P1o = 0;
+   P2 = 1; P2s = 0; P2o = 0;
+   Cr = 0; Co = 1; Cstore = 0;
+   Ar = 0; Ao = 1;
+   Do = 0; Dr = 1;
+   Estar = 0; E = 1;
+end
+
+model scheme_8a()
+   // Variable initialization:
+   k1 = {k1}
+   k2 = {k2}
+   k3 = {k3}
+   k4 = {k4}
+   gam1 = {exc_rate[0]}
+   gam2 = {exc_rate[1]}
+   k_m = {k_maintenance}    
+   kr = {k_resp}
+   kb = {k_resp_back}
+   kd = {k_day}
+   kn = {k_night}
+   kcr = {k_cr}
+  
+   // Reactions:
+   photo1: P1 -> P1s; gam1 * P1
+   Ared: P1s + Ao -> P1o + Ar; k1 * P1s * Ao
+   Dox: P1o + $Dr -> P1 + Do; k2 * P1o
    
    photo2: P2 -> P2s; gam2 * P2
    Bred: P2s + Bo -> P2o + Br; k3 * P2s * Bo
-   Aox: P2o + Ar -> Ao + P2; k4 * P2o * Ar
+   Aox: Ar + P2o -> Ao + P2; k4 * P2o * Ar
+   
+   M: Estar -> E; k_m * Estar * Cr
+
+   DCF: Br + $Co + {dcr_stoi} Estar -> Bo + Cr + {dcr_stoi} E; kcr * Br * (Estar^{dcr_stoi})
+   
+   Rfw: Do + Cr + {estoi} E -> $Dr + $Co + {estoi} Estar; kr*Do*Cr*(E^{estoi});
+   Rbw: $Dr + $Co + {estoi} Estar -> Do + Cr + {estoi} E; kb*(Estar^{estoi});
+   
+   Sfw: Cr -> Cstore; kd * Cr
+   Sbw: Cstore -> Cr; kn * Cstore
 
    // Species initializations:
-   P = 1; Ps = 0; Po = 0;
+   P1 = 1; P1s = 0; P1o = 0;
+   P2 = 1; P2s = 0; P2o = 0;
+   Cr = 0; Co = 1; Cstore = 0;
    Ar = 0; Ao = 1;
    Br = 0; Bo = 1;
    Do = 0; Dr = 1;
-   E = 1; Estar = 0;
+   Estar = 0; E = 1;
 end
 
-model scheme_{scheme}()
-    P: scheme_{scheme}_photochem()
-    R: resp()
-    M: maintenance()
-    //S: storage()
-    P.Do is R.Do
-    P.Cr is R.Cr
-    //P.Estar is R.Estar
-    //P.E is R.E
-    M.E is R.E
-    M.Estar is R.Estar
-    //S.Cr is R.Cr
-    M.Cr is R.Cr
+model scheme_8b()
+   // Variable initialization:
+   k1 = {k1}
+   k2 = {k2}
+   k3 = {k3}
+   k4 = {k4}
+   gam1 = {exc_rate[0]}
+   gam2 = {exc_rate[1]}
+   k_m = {k_maintenance}    
+   kr = {k_resp}
+   kb = {k_resp_back}
+   kd = {k_day}
+   kn = {k_night}
+   kcr = {k_cr}
+  
+   // Reactions:
+   photo1: P1 -> P1s; gam1 * P1
+   Ared: P1s + Ao + E -> P1o + Ar + Estar; k1 * P1s * Ao * E
+   Dox: P1o + $Dr -> P1 + Do; k2 * P1o
+   
+   photo2: P2 -> P2s; gam2 * P2
+   Bred: P2s + Bo -> P2o + Br; k3 * P2s * Bo
+   Aox: Ar + P2o -> Ao + P2; k4 * P2o * Ar
+   
+   M: Estar -> E; k_m * Estar * Cr
+
+   DCF: Br + $Co + {dcr_stoi} Estar -> Bo + Cr + {dcr_stoi} E; kcr * Br * (Estar^{dcr_stoi})
+   
+   Rfw: Do + Cr + {estoi} E -> $Dr + $Co + {estoi} Estar; kr*Do*Cr*(E^{estoi});
+   Rbw: $Dr + $Co + {estoi} Estar -> Do + Cr + {estoi} E; kb*(Estar^{estoi});
+   
+   Sfw: Cr -> Cstore; kd * Cr
+   Sbw: Cstore -> Cr; kn * Cstore
+
+   // Species initializations:
+   P1 = 1; P1s = 0; P1o = 0;
+   P2 = 1; P2s = 0; P2o = 0;
+   Cr = 0; Co = 1; Cstore = 0;
+   Ar = 0; Ao = 1;
+   Br = 0; Bo = 1;
+   Do = 0; Dr = 1;
+   Estar = 0; E = 1;
 end
 
+model scheme_8c()
+   // Variable initialization:
+   k1 = {k1}
+   k2 = {k2}
+   k3 = {k3}
+   k4 = {k4}
+   gam1 = {exc_rate[0]}
+   gam2 = {exc_rate[1]}
+   k_m = {k_maintenance}    
+   kr = {k_resp}
+   kb = {k_resp_back}
+   kd = {k_day}
+   kn = {k_night}
+   kcr = {k_cr}
+  
+   // Reactions:
+   photo1: P1 -> P1s; gam1 * P1
+   Ared: P1s + Ao + E -> P1o + Ar + Estar; k1 * P1s * Ao * E
+   Dox: P1o + $Dr -> P1 + Do; k2 * P1o
+   
+   photo2: P2 -> P2s; gam2 * P2
+   Bred: P2s + Bo + E -> P2o + Br + Estar; k3 * P2s * Bo * E
+   Aox: Ar + P2o -> Ao + P2; k4 * P2o * Ar
+   
+   M: Estar -> E; k_m * Estar * Cr
+
+   DCF: Br + $Co + {dcr_stoi} Estar -> Bo + Cr + {dcr_stoi} E; kcr * Br * (Estar^{dcr_stoi})
+   
+   Rfw: Do + Cr + {estoi} E -> $Dr + $Co + {estoi} Estar; kr*Do*Cr*(E^{estoi});
+   Rbw: $Dr + $Co + {estoi} Estar -> Do + Cr + {estoi} E; kb*(Estar^{estoi});
+   
+   Sfw: Cr -> Cstore; kd * Cr
+   Sbw: Cstore -> Cr; kn * Cstore
+
+   // Species initializations:
+   P1 = 1; P1s = 0; P1o = 0;
+   P2 = 1; P2s = 0; P2o = 0;
+   Cr = 0; Co = 1; Cstore = 0;
+   Ar = 0; Ao = 1;
+   Br = 0; Bo = 1;
+   Do = 0; Dr = 1;
+   Estar = 0; E = 1;
+end
+
+// this just pulls in whichever scheme you want from above and
+// runs that model, so don't remove these lines
+model sim()
+    A: scheme_{scheme}()
+end
 """)
 result = r.simulate(0, cycles*period, cycles*period + 1)
 r.plot(result, logy=False, ylim=[0.001, 1.2 * np.max(result[:, 1:])])
 
-'''
-s = te.loada(f"""
-import "models.txt"
+fig, ax = plt.subplots()
+ax.plot(result['time'], result['[A_Cr]'], label='Cr', color='firebrick')
+ax.plot(result['time'], result['[A_Cstore]'], label='Cstore', color='skyblue')
+ax.plot(result['time'], result['[A_Estar]'], label='E*', color='forestgreen')
+ax.plot(result['time'], result['[A_Do]'], label='Dox', color='gold')
+ax.legend()
+plt.show()
+plt.close()
 
-model scheme()
-  scheme_1({exc_rate[0]}, {k1}, {k2}, {k_resp}, {k_resp_back}, {k_maintenance}, {k_day}, {k_night}, {estoi})
-end
-""")
-#result = s.simulate(0, cycles*period, cycles*period + 1)
-#s.plot(result, ylim=[0.001, 1.2 * np.max(result[:, 1:])])
-'''
