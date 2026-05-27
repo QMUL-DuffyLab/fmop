@@ -1,3 +1,4 @@
 *.ipynb*
 *.virtual*
 __pycache__*
+out/*

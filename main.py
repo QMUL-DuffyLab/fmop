@@ -15,13 +15,16 @@ at the moment it does not really do this though, because the schemes
 all take different parameters and i haven't sorted out all the details yet
 """
 
+import os
 import tellurium as te
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import roadrunner
 from scipy.constants import h, c, e, Boltzmann
 import light
 
+output_dir = "out"
 Temperature = 300
 hcnm = (h * c) / (1.0E-9)
 beta_cm = 1.0 / (Boltzmann * Temperature * (1. / (100.0 * c))) # in wavenumbers
@@ -68,7 +71,7 @@ dg_gamma = { # reddest usable wavelength of light
 estoi = estar_stoi(dg_h2o, dg_co2, ten_kbt)
 print(f"E* stoichiometry: {estoi}")
 
-scheme = "7b"
+scheme = "1"
 print(f"Scheme {scheme}")
 
 exc_rate = []
@@ -662,3 +665,5 @@ ax.legend()
 plt.show()
 plt.close()
 
+df = pd.DataFrame(result)
+df.to_csv(os.path.join(output_dir, f"scheme_{scheme}.csv"))
