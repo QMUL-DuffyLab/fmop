@@ -4,15 +4,20 @@ Created on Mon May 11 14:33:16 2026
 
 @author: callum
 
-this code should eventually take some user-defined parameters
-that correspond to one of the possible photosynthetic schemes
-we've dreamt up, and then set up a tellurium model for that
-scheme and run it. ultimately we want to rank these schemes in some way
-and investigate whether terrestrial oxygenic photosynthesis is a "better"
-or more robust method than others.
+this is some code to set up and simulate a bunch of different
+chemical reaction networks that aim to describe possible ways to do
+photosynthesis. basically we think about all the ways we could use
+light energy to drive carbon reduction that are *thermodynamically*
+feasible, and then set up our little networks and see how well they do
+at reducing carbon, etc.
 
-at the moment it does not really do this though, because the schemes
-all take different parameters and i haven't sorted out all the details yet
+at the moment it's a mess, everything's in one big horrible monolithic
+file, etc. part of that is hard to avoid because we need to format
+the big string that contains the model with stuff like the stoichiometry
+of various things, so we can't just put it in a separate text file and
+have antimony read it in because it'll fail. also it breaks on a load
+of other stuff to do with SMBL conversion and i can't be arsed to figure
+out why. i will maybe fix this at some point.
 """
 
 import os
@@ -95,6 +100,7 @@ k_day = 1
 k_night = 1
 k_maintenance = 1
 k_cr = 1
+
 
 r = te.loada(f"""
 function square_wave(t, period, intensity)
@@ -647,14 +653,17 @@ model scheme_8c()
    Estar = 0; E = 1;
 end
 
-// this just pulls in whichever scheme you want from above and
-// runs that model, so don't remove these lines
+// pull in whichever scheme you want from above and run that model
 model sim()
     A: scheme_{scheme}()
 end
 """)
 result = r.simulate(0, cycles*period, cycles*period + 1)
 r.plot(result, logy=False, ylim=[0.001, 1.2 * np.max(result[:, 1:])])
+# results is a roadrunner.NamedArray not a structured numpy array
+# so the relevant object method is colnames not fields
+# (check dir(object) to look at all the methods! useful)
+print(result.colnames)
 
 fig, ax = plt.subplots()
 ax.plot(result['time'], result['[A_Cr]'], label='Cr', color='firebrick')
@@ -665,5 +674,7 @@ ax.legend()
 plt.show()
 plt.close()
 
-df = pd.DataFrame(result)
+df = pd.DataFrame(result, columns=result.colnames)
 df.to_csv(os.path.join(output_dir, f"scheme_{scheme}.csv"))
+
+    
