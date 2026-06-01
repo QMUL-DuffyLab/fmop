@@ -56,7 +56,8 @@ dg_p = dg_co2 - dg_h2o
 
 dg_gamma = { # reddest usable wavelength of light
     "1": [ev_nm(611.0), np.nan],
-    "2": [ev_nm(541.0), np.nan],
+    "2a": [ev_nm(541.0), np.nan],
+    "2b": [ev_nm(541.0), np.nan],
     "3": [ev_nm(611.0), np.nan],
     "4": [ev_nm(1192.0), np.nan],
     "5a": [5 * ten_kbt, np.nan],
@@ -126,6 +127,13 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
       intensity * (1 - (floor(t / period) - 2 * floor(floor(t / period) / 2)))
     end
 
+    model storage(kn, kd)
+       // i dunno if this will actually work like this,
+       // but we're not using these reactions anyway atm
+       fw: Cr -> Cstore; kd * Cr
+       bw: Cstore -> Cr; kn * Cstore
+    end
+    
     model scheme_1()
        // Variable initialization:
        k1 = {params["k1"]}
@@ -145,8 +153,6 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        M: Estar -> E; k_m * Estar * Cr
        Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
        Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
-       Sfw: Cr -> Cstore; kd * Cr
-       Sbw: Cstore -> Cr; kn * Cstore
 
        // Species initializations:
        P = 1; Ps = 0; Po = 0;
@@ -155,7 +161,7 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        E = 1; Estar = 0;
     end
 
-    model scheme_2()
+    model scheme_2a()
        // Variable initialization:
        k1 = {params["k1"]}
        k2 = {params["k2"]}
@@ -168,13 +174,11 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
       
        // Reactions:
        photo: P -> Ps; gam * P
-       Cred: Ps + $Co + E -> Po + Cr + Estar; k1 * Ps
+       Cred: Ps + $Co + E -> Po + Cr + Estar; k1 * Ps * E
        Dox: $Dr + Po -> Do + P; k2 * Po
        M: Estar -> E; k_m * Estar * Cr
        Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
        Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
-       Sfw: Cr -> Cstore; kd * Cr
-       Sbw: Cstore -> Cr; kn * Cstore
 
        // Species initializations:
        P = 1; Ps = 0; Po = 0;
@@ -201,8 +205,6 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        M: Estar -> E; k_m * Estar * Cr
        Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
        Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
-       Sfw: Cr -> Cstore; kd * Cr
-       Sbw: Cstore -> Cr; kn * Cstore
 
        // Species initializations:
        P = 1; Ps = 0; Po = 0;
@@ -211,7 +213,39 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        Estar = 0; E = 1;
     end
 
-    model scheme_3()
+    model scheme_3a()
+       // Variable initialization:
+       k1 = {params["k1"]}
+       k2 = {params["k2"]}
+       gam = {exc_rate[0]}
+       k_m = {params["k_maintenance"]}    
+       kr = {params["k_resp"]} // this basically controls how much Cr you accumulate
+       kb = {params["k_resp_back"]}
+       kd = {params["k_day"]}
+       kn = {params["k_night"]}
+      
+       // Reactions:
+       photo: P -> Ps; gam * P
+       Ared: Ps + Ao + E -> Po + Ar + Estar; k1 * Ps * E
+       Dox: $Dr + Po -> Do + P; k2 * Po
+
+       // dark carbon reduction
+       DCR: Ar + $Co + {params["dcr_stoi"]} Estar -> Ao + Cr + {params["dcr_stoi"]} E; kcr * Ar * (Estar^{params["dcr_stoi"]})
+
+       M: Estar -> E; k_m * Estar * Cr
+
+       Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
+       Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
+
+       // Species initializations:
+       P = 1; Ps = 0; Po = 0;
+       Cr = 0; Co = 1; Cstore = 0;
+       Ar = 0; Ao = 1;
+       Do = 0; Dr = 1;
+       Estar = 0; E = 1;
+    end
+
+    model scheme_3b()
        // Variable initialization:
        k1 = {params["k1"]}
        k2 = {params["k2"]}
@@ -225,12 +259,15 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        // Reactions:
        photo: P -> Ps; gam * P
        Ared: Ps + Ao -> Po + Ar; k1 * Ps
-       Aox: Ar + Po + E -> Ao + P + Estar; k2 * Po * E
+       Dox: $Dr + Po + E -> Do + P + Estar; k2 * Po * E
+
+       // dark carbon reduction
+       DCR: Ar + $Co + {params["dcr_stoi"]} Estar -> Ao + Cr + {params["dcr_stoi"]} E; kcr * Ar * (Estar^{params["dcr_stoi"]})
+
        M: Estar -> E; k_m * Estar * Cr
+
        Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
        Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
-       Sfw: Cr -> Cstore; kd * Cr
-       Sbw: Cstore -> Cr; kn * Cstore
 
        // Species initializations:
        P = 1; Ps = 0; Po = 0;
@@ -260,8 +297,6 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        M: Estar -> E; k_m * Estar * Cr
        Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
        Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
-       Sfw: Cr -> Cstore; kd * Cr
-       Sbw: Cstore -> Cr; kn * Cstore
 
        // Species initializations:
        P = 1; Ps = 0; Po = 0;
@@ -291,8 +326,6 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        M: Estar -> E; k_m * Estar * Cr
        Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
        Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
-       Sfw: Cr -> Cstore; kd * Cr
-       Sbw: Cstore -> Cr; kn * Cstore
 
        // Species initializations:
        P = 1; Ps = 0; Po = 0;
@@ -322,8 +355,6 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        M: Estar -> E; k_m * Estar * Cr
        Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
        Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
-       Sfw: Cr -> Cstore; kd * Cr
-       Sbw: Cstore -> Cr; kn * Cstore
 
        // Species initializations:
        P = 1; Ps = 0; Po = 0;
@@ -363,8 +394,6 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
        Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
        
-       Sfw: Cr -> Cstore; kd * Cr
-       Sbw: Cstore -> Cr; kn * Cstore
 
        // Species initializations:
        P1 = 1; P1s = 0; P1o = 0;
@@ -405,8 +434,6 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
        Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
        
-       Sfw: Cr -> Cstore; kd * Cr
-       Sbw: Cstore -> Cr; kn * Cstore
 
        // Species initializations:
        P1 = 1; P1s = 0; P1o = 0;
@@ -446,8 +473,6 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
        Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
        
-       Sfw: Cr -> Cstore; kd * Cr
-       Sbw: Cstore -> Cr; kn * Cstore
 
        // Species initializations:
        P1 = 1; P1s = 0; P1o = 0;
@@ -487,8 +512,6 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
        Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
        
-       Sfw: Cr -> Cstore; kd * Cr
-       Sbw: Cstore -> Cr; kn * Cstore
 
        // Species initializations:
        P1 = 1; P1s = 0; P1o = 0;
@@ -528,8 +551,6 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
        Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
        
-       Sfw: Cr -> Cstore; kd * Cr
-       Sbw: Cstore -> Cr; kn * Cstore
 
        // Species initializations:
        P1 = 1; P1s = 0; P1o = 0;
@@ -571,8 +592,6 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
        Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
        
-       Sfw: Cr -> Cstore; kd * Cr
-       Sbw: Cstore -> Cr; kn * Cstore
 
        // Species initializations:
        P1 = 1; P1s = 0; P1o = 0;
@@ -615,8 +634,6 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
        Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
        
-       Sfw: Cr -> Cstore; kd * Cr
-       Sbw: Cstore -> Cr; kn * Cstore
 
        // Species initializations:
        P1 = 1; P1s = 0; P1o = 0;
@@ -659,8 +676,6 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
        Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
        
-       Sfw: Cr -> Cstore; kd * Cr
-       Sbw: Cstore -> Cr; kn * Cstore
 
        // Species initializations:
        P1 = 1; P1s = 0; P1o = 0;
@@ -684,7 +699,7 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
 
     return r, result, df, out_pref
 
-scheme = "1"
+scheme = "2a"
 Tstar = 2343
 
 r, result, df, out_pref = run(scheme, Tstar)
@@ -696,7 +711,6 @@ plot_file = os.path.join(output_dir, f"{out_pref}_scheme_{scheme}.csv")
 
 fig, ax = plt.subplots()
 ax.plot(result['time'], result['[A_Cr]'], label='Cr', color='firebrick')
-ax.plot(result['time'], result['[A_Cstore]'], label='Cstore', color='skyblue')
 ax.plot(result['time'], result['[A_Estar]'], label='E*', color='forestgreen')
 ax.plot(result['time'], result['[A_Do]'], label='Dox', color='gold')
 ax.legend()
