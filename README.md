@@ -19,16 +19,20 @@ in a notebook cell or something like that, but I haven't checked.
 ## Comments
 
 The code itself is pretty short and hopefully self-explanatory, at least so far.
-The main problem is setting up 14 different possible chemical reaction networks which share some similarities but differ in non-trivial ways, while also substituting in various parameters that should be settable by the user.
-There are a common core of reactions, but there are a lot of variations and they all bolt together in different ways depending on the scheme so it's difficult to cut them up into properly reusable parts, and even if you could you'd still have to go through and make sure the species are explicitly connected to each other in each of the sub-reactions so you'd end up with a load of bespoke code per scheme anyway.
-Additionally, because of how the underlying [antimony](https://github.com/sys-bio/antimony/) specification language works, we can't just bung the whole set in a file and read it back in, because we need an f-string to set the relevant parameters.
-Basically the upshot is that I've ended up with a 500-line f-string in main.py that contains all the data for all the models, and then a wrapper function for the user to provide a scheme string and a stellar effective temperature and that just returns the results.
-This is *really ugly and I hate it* but I have (not yet) figured out a better option.
+Tellurium uses the [antimony](https://github.com/sys-bio/antimony/) specification language and I've defined our photosynthetic schemes using that.
+It's all one long python f-string that inserts the values of various parameters like reaction rates and stoichiometries as it goes; this might not be the most elegant way of doing things really, and we might not even need the flexibility of defining the parameters this way, but it works.
+
+The big string is organised into four main blocks: first are a few functions which I've defined to allow for different light input scenarios.
+Currently there are periodic (day/night cycle), switch (light is on at t = 0 and switches off at some time t > 0 that we can set), or constant illumination options.
+These are set by the `params["light"]` dict member, which you can set, it will build the required function call and insert it into the model for you.
+Secondly there are a few little models which I guess you can think of as submodels: certain components that are reused between schemes, like a maintenance reaction that consumes units of stored chemical energy, respiration which uses reduced carbon to produce units of chemical energy, etc.
+These are defined first, with a comment block before them explaining how they're defined.
+Then there are the schemes themselves, again with a comment block explaining how they work.
+They contain the photochemical reactions and then call the submodels to complete the chemical reaction network.
+Finally there's a section that sets all the variables and initialises the concentrations of all the possible species; the line `A: scheme_{scheme}(...)` is where your chosen scheme is inserted.
 
 ## TO DO
 
 - [ ] Check notebook setup and provide an example .ipynb for use in the tellurium viewer or jupyter or wherever
-- [ ] Add notes on the allowed stellar temperatures and scheme strings to the `run()` docstring
-- [ ] Figure out a better way of composing the component functions of different schemes to cut down on duplicated code
-- [ ] See if it's possible to use python string `.format()` method to insert quantities at runtime instead of setting all the parameters in the file and then f-stringing them in
+- [ ] Figure out if the models themselves can now be put in a separate txt file and then loaded in by antimony; this didn't work before, but *maybe* if we hard code the stoichiometries it will?
 - [ ] Settle on where the `run()` wrapper abstraction should end - should it include the plots? Do the plots and return the filenames? What's the intended workflow here

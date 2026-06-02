@@ -114,7 +114,10 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
     ---------
 
     `scheme` should be a *string* corresponding to a key in
-    `dg` and a named scheme in the long f-string below.
+    `dg_gamma` and a named scheme in the long f-string below.
+    `Tstar` should match one of the stellar temperatures in light.py,
+    which are a bunch of effective stellar temperatures taken from the
+    isochrones of Baraffe et al.
     `params` is a dict of the light type, stoichiometries and rates.
     `dg` is a dict of the photon energy gaps for each scheme
     light type should be "periodic", "switch" or "constant"
@@ -124,6 +127,10 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
 
     NB: haven't fixed what these will be yet
     '''
+    if scheme not in dg_gamma.keys():
+        raise KeyError(f"Incorrect scheme provided to run(). Scheme = {scheme}, allowed schemes are {dg_gamma.keys()}")
+    if Tstar not in light.phz_stars['Tstar']:
+        raise ValueError(f"Incorrect stellar temperature provided to run(). Tstar = {Tstar}, allowed values are {light.phz_stars['Tstar']}")
     print(f"Ts = {Tstar}, Scheme {scheme}")
     spectrum, out_pref = light.stellar_hz_midpoint(Tstar)
     total_flux = light.micromole_in_region(spectrum, xlim[0], ev_nm(dg_p))
