@@ -60,9 +60,12 @@ dg_p = dg_co2 - dg_h2o
 # in the f-string as exc_rate[0], exc_rate[1], so that list
 # must have two members
 dg_gamma = { # reddest usable wavelength of light
-    "1": [ev_nm(611.0), np.nan],
-    "2a": [ev_nm(541.0), np.nan],
+    "1a": [ev_nm(611.0), np.nan],
+    "1b": [ev_nm(541.0), np.nan],
+    "1c": [ev_nm(541.0), np.nan],
+    "2a": [ev_nm(611.0), np.nan],
     "2b": [ev_nm(541.0), np.nan],
+    "2c": [ev_nm(541.0), np.nan],
     "3a": [ev_nm(611.0), np.nan],
     "3b": [ev_nm(611.0), np.nan],
     "4": [ev_nm(1192.0), np.nan],
@@ -158,7 +161,7 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        bw: Cstore -> Cr; kn * Cstore
     end
     
-    model scheme_1()
+    model scheme_1a()
        // Variable initialization:
        k1 = {params["k1"]}
        k2 = {params["k2"]}
@@ -184,7 +187,7 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        E = 1; Estar = 0;
     end
 
-    model scheme_2a()
+    model scheme_1b()
        // Variable initialization:
        k1 = {params["k1"]}
        k2 = {params["k2"]}
@@ -207,10 +210,10 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        P = 1; Ps = 0; Po = 0;
        Cr = 0; Co = 1; Cstore = 0;
        Do = 0; Dr = 1;
-       Estar = 0; E = 1;
+       E = 1; Estar = 0;
     end
 
-    model scheme_2b()
+    model scheme_1c()
        // Variable initialization:
        k1 = {params["k1"]}
        k2 = {params["k2"]}
@@ -226,6 +229,108 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        Cred: Ps + $Co -> Po + Cr; k1 * Ps
        Dox: $Dr + Po + E -> Do + P + Estar; k2 * Po * E
        M: Estar -> E; k_m * Estar * Cr
+       Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
+       Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
+
+       // Species initializations:
+       P = 1; Ps = 0; Po = 0;
+       Cr = 0; Co = 1; Cstore = 0;
+       Do = 0; Dr = 1;
+       E = 1; Estar = 0;
+    end
+
+    model scheme_2a()
+       // Variable initialization:
+       k1 = {params["k1"]}
+       k2 = {params["k2"]}
+       gam := {gamma_string[0]}
+       k_m = {params["k_maintenance"]}    
+       kr = {params["k_resp"]} // this basically controls how much Cr you accumulate
+       kb = {params["k_resp_back"]}
+       kd = {params["k_day"]}
+       kn = {params["k_night"]}
+       kcr = {params["k_cr"]}
+       kcrb = {params["k_cr_back"]}
+      
+       // Reactions:
+       photo: P -> Ps; gam * P
+       Ared: Ps + Ao -> Po + Ar; k1 * Ps
+       Dox: $Dr + Po -> Do + P; k2 * Po
+
+       M: Estar -> E; k_m * Estar * Cr
+
+       // dark carbon reduction
+       DCRfw: Ar + $Co -> Ao + Cr; kcr * Ar
+       DCRbw: Ao + Cr -> Ar + $Co; kcrb * Ao
+
+       Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
+       Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
+
+       // Species initializations:
+       P = 1; Ps = 0; Po = 0;
+       Cr = 0; Co = 1; Cstore = 0;
+       Do = 0; Dr = 1;
+       Estar = 0; E = 1;
+    end
+
+    model scheme_2b()
+       // Variable initialization:
+       k1 = {params["k1"]}
+       k2 = {params["k2"]}
+       gam := {gamma_string[0]}
+       k_m = {params["k_maintenance"]}    
+       kr = {params["k_resp"]} // this basically controls how much Cr you accumulate
+       kb = {params["k_resp_back"]}
+       kd = {params["k_day"]}
+       kn = {params["k_night"]}
+       kcr = {params["k_cr"]}
+       kcrb = {params["k_cr_back"]}
+      
+       // Reactions:
+       photo: P -> Ps; gam * P
+       Ared: Ps + Ao + E -> Po + Ar + Estar; k1 * Ps * E
+       Dox: $Dr + Po -> Do + P; k2 * Po
+
+       M: Estar -> E; k_m * Estar * Cr
+
+       // dark carbon reduction
+       DCRfw: Ar + $Co -> Ao + Cr; kcr * Ar
+       DCRbw: Ao + Cr -> Ar + $Co; kcrb * Ao
+
+       Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
+       Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
+
+       // Species initializations:
+       P = 1; Ps = 0; Po = 0;
+       Cr = 0; Co = 1; Cstore = 0;
+       Do = 0; Dr = 1;
+       Estar = 0; E = 1;
+    end
+
+    model scheme_2c()
+       // Variable initialization:
+       k1 = {params["k1"]}
+       k2 = {params["k2"]}
+       gam := {gamma_string[0]}
+       k_m = {params["k_maintenance"]}    
+       kr = {params["k_resp"]} // this basically controls how much Cr you accumulate
+       kb = {params["k_resp_back"]}
+       kd = {params["k_day"]}
+       kn = {params["k_night"]}
+       kcr = {params["k_cr"]}
+       kcrb = {params["k_cr_back"]}
+      
+       // Reactions:
+       photo: P -> Ps; gam * P
+       Ared: Ps + Ao -> Po + Ar; k1 * Ps
+       Dox: $Dr + Po + E -> Do + P + Estar; k2 * Po * E
+
+       M: Estar -> E; k_m * Estar * Cr
+
+       // dark carbon reduction
+       DCRfw: Ar + $Co -> Ao + Cr; kcr * Ar
+       DCRbw: Ao + Cr -> Ar + $Co; kcrb * Ao
+
        Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
        Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
 
@@ -743,7 +848,16 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
 
     return r, result, df, out_pref
 
-scheme = "3a"
+def simple_plot(result):
+    fig, ax = plt.subplots()
+    ax.plot(result['time'], result['[A_Cr]'], label='Cr', color='firebrick')
+    ax.plot(result['time'], result['[A_Estar]'], label='E*', color='forestgreen')
+    ax.plot(result['time'], result['[A_Do]'], label='Dox', color='gold')
+    ax.legend()
+    plt.show()
+    return plt
+
+scheme = "1a"
 Tstar = 2343
 
 r, result, df, out_pref = run(scheme, Tstar)
@@ -752,11 +866,3 @@ r.plot(result, logy=False, ylim=[0.001, 1.2 * np.max(result[:, 1:])])
 # so the relevant object method is colnames not fields
 # (check dir(object) to look at all the methods! useful)
 plot_file = os.path.join(output_dir, f"{out_pref}_scheme_{scheme}.csv")
-
-fig, ax = plt.subplots()
-ax.plot(result['time'], result['[A_Cr]'], label='Cr', color='firebrick')
-ax.plot(result['time'], result['[A_Estar]'], label='E*', color='forestgreen')
-ax.plot(result['time'], result['[A_Do]'], label='Dox', color='gold')
-ax.legend()
-plt.show()
-plt.close()
