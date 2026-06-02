@@ -39,8 +39,9 @@ ten_kbt = 0.26
 xlim = [400.0, 2000.0]
 nx = int(xlim[1] - xlim[0])
 
-period = 10 # if day/night cycle is turned on
-cycles = 10
+tmax = 500
+cycles = 10 # only relevant if day/night cycle is turned on
+period = tmax // cycles
 
 def estar_stoi(dg_donor, dg_acceptor, unit):
     return np.round(-(dg_donor - dg_acceptor) / unit)
@@ -54,11 +55,16 @@ dg_h2o = -5.10 # in eV
 dg_co2 = -3.85 # in eV
 dg_p = dg_co2 - dg_h2o
 
+# note that these all have two entries: this is because
+# later two-photon schemes require it and they're called
+# in the f-string as exc_rate[0], exc_rate[1], so that list
+# must have two members
 dg_gamma = { # reddest usable wavelength of light
     "1": [ev_nm(611.0), np.nan],
     "2a": [ev_nm(541.0), np.nan],
     "2b": [ev_nm(541.0), np.nan],
-    "3": [ev_nm(611.0), np.nan],
+    "3a": [ev_nm(611.0), np.nan],
+    "3b": [ev_nm(611.0), np.nan],
     "4": [ev_nm(1192.0), np.nan],
     "5a": [5 * ten_kbt, np.nan],
     "5b": [5 * ten_kbt, np.nan],
@@ -73,7 +79,8 @@ dg_gamma = { # reddest usable wavelength of light
     }
 
 params = {
-    "estoi"      : 5,
+    "light"         : "switch",
+    "estoi"         : 5,
     "dcr_stoi"      : 5,
     "k_resp"        : 1,
     "k_resp_back"   : 1,
@@ -85,6 +92,7 @@ params = {
     "k_night"       : 1,
     "k_maintenance" : 1,
     "k_cr"          : 1,
+    "k_cr_back"     : 1,
 }
 
 def run(scheme, Tstar, params=params, dg=dg_gamma,
@@ -103,8 +111,9 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
 
     `scheme` should be a *string* corresponding to a key in
     `dg` and a named scheme in the long f-string below.
-    `params` is a dict of stoichiometries and rates.
+    `params` is a dict of the light type, stoichiometries and rates.
     `dg` is a dict of the photon energy gaps for each scheme
+    light type should be "periodic", "switch" or "constant"
 
     outputs
     -------
@@ -122,9 +131,24 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
         
     print(f"Excitation rate(s): {exc_rate}")
 
+    if params["light"] == "periodic":
+        gamma_string = [f"square_wave(time, {period}, {er})" for er in exc_rate]
+    elif params["light"] == "switch":
+        gamma_string = [f"switch_off(time, {tmax//2}, {er})" for er in exc_rate]
+    elif params["light"] == "constant":
+        gamma_string = [f"constant(time, {er})" for er in exc_rate]
+
     r = te.loada(f"""
     function square_wave(t, period, intensity)
       intensity * (1 - (floor(t / period) - 2 * floor(floor(t / period) / 2)))
+    end
+    
+    function switch_off(t, off_time, intensity)
+        piecewise(intensity, (t - off_time) <= 0, 0)
+    end
+
+    function constant(t, intensity)
+        intensity
     end
 
     model storage(kn, kd)
@@ -138,8 +162,7 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        // Variable initialization:
        k1 = {params["k1"]}
        k2 = {params["k2"]}
-       // gam := square_wave(time, {period}, {exc_rate[0]})
-       gam = {exc_rate[0]}
+       gam := {gamma_string[0]}
        k_m = {params["k_maintenance"]}    
        kr = {params["k_resp"]} // this basically controls how much Cr you accumulate
        kb = {params["k_resp_back"]}
@@ -165,7 +188,7 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        // Variable initialization:
        k1 = {params["k1"]}
        k2 = {params["k2"]}
-       gam = {exc_rate[0]}
+       gam := {gamma_string[0]}
        k_m = {params["k_maintenance"]}    
        kr = {params["k_resp"]} // this basically controls how much Cr you accumulate
        kb = {params["k_resp_back"]}
@@ -191,7 +214,7 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        // Variable initialization:
        k1 = {params["k1"]}
        k2 = {params["k2"]}
-       gam = {exc_rate[0]}
+       gam := {gamma_string[0]}
        k_m = {params["k_maintenance"]}    
        kr = {params["k_resp"]} // this basically controls how much Cr you accumulate
        kb = {params["k_resp_back"]}
@@ -217,12 +240,14 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        // Variable initialization:
        k1 = {params["k1"]}
        k2 = {params["k2"]}
-       gam = {exc_rate[0]}
+       gam := {gamma_string[0]}
        k_m = {params["k_maintenance"]}    
        kr = {params["k_resp"]} // this basically controls how much Cr you accumulate
        kb = {params["k_resp_back"]}
        kd = {params["k_day"]}
        kn = {params["k_night"]}
+       kcr = {params["k_cr"]}
+       kcrb = {params["k_cr_back"]}
       
        // Reactions:
        photo: P -> Ps; gam * P
@@ -230,7 +255,8 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        Dox: $Dr + Po -> Do + P; k2 * Po
 
        // dark carbon reduction
-       DCR: Ar + $Co + {params["dcr_stoi"]} Estar -> Ao + Cr + {params["dcr_stoi"]} E; kcr * Ar * (Estar^{params["dcr_stoi"]})
+       DCRfw: Ar + $Co + {params["dcr_stoi"]} Estar -> Ao + Cr + {params["dcr_stoi"]} E; kcr * Ar * (Estar^{params["dcr_stoi"]})
+       DCRbw: Ao + Cr + {params["dcr_stoi"]} E -> Ar + $Co + {params["dcr_stoi"]} Estar; kcrb * Ao * (E^{params["dcr_stoi"]})
 
        M: Estar -> E; k_m * Estar * Cr
 
@@ -249,12 +275,14 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        // Variable initialization:
        k1 = {params["k1"]}
        k2 = {params["k2"]}
-       gam = {exc_rate[0]}
+       gam := {gamma_string[0]}
        k_m = {params["k_maintenance"]}    
        kr = {params["k_resp"]} // this basically controls how much Cr you accumulate
        kb = {params["k_resp_back"]}
        kd = {params["k_day"]}
        kn = {params["k_night"]}
+       kcr = {params["k_cr"]}
+       kcrb = {params["k_cr_back"]}
       
        // Reactions:
        photo: P -> Ps; gam * P
@@ -262,7 +290,8 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        Dox: $Dr + Po + E -> Do + P + Estar; k2 * Po * E
 
        // dark carbon reduction
-       DCR: Ar + $Co + {params["dcr_stoi"]} Estar -> Ao + Cr + {params["dcr_stoi"]} E; kcr * Ar * (Estar^{params["dcr_stoi"]})
+       DCRfw: Ar + $Co + {params["dcr_stoi"]} Estar -> Ao + Cr + {params["dcr_stoi"]} E; kcr * Ar * (Estar^{params["dcr_stoi"]})
+       DCRbw: Ao + Cr + {params["dcr_stoi"]} E -> Ar + $Co + {params["dcr_stoi"]} Estar; kcrb * Ao * (E^{params["dcr_stoi"]})
 
        M: Estar -> E; k_m * Estar * Cr
 
@@ -281,13 +310,14 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        // Variable initialization:
        k1 = {params["k1"]}
        k2 = {params["k2"]}
-       gam = {exc_rate[0]}
+       gam := {gamma_string[0]}
        k_m = {params["k_maintenance"]}    
        kr = {params["k_resp"]} // this basically controls how much Cr you accumulate
        kb = {params["k_resp_back"]}
        kd = {params["k_day"]}
        kn = {params["k_night"]}
        kcr = {params["k_cr"]}
+       kcrb = {params["k_cr_back"]}
       
        // Reactions:
        photo: P -> Ps; gam * P
@@ -310,13 +340,14 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        // Variable initialization:
        k1 = {params["k1"]}
        k2 = {params["k2"]}
-       gam = {exc_rate[0]}
+       gam := {gamma_string[0]}
        k_m = {params["k_maintenance"]}    
        kr = {params["k_resp"]} // this basically controls how much Cr you accumulate
        kb = {params["k_resp_back"]}
        kd = {params["k_day"]}
        kn = {params["k_night"]}
        kcr = {params["k_cr"]}
+       kcrb = {params["k_cr_back"]}
       
        // Reactions:
        photo: P -> Ps; gam * P
@@ -339,13 +370,14 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        // Variable initialization:
        k1 = {params["k1"]}
        k2 = {params["k2"]}
-       gam = {exc_rate[0]}
+       gam := {gamma_string[0]}
        k_m = {params["k_maintenance"]}    
        kr = {params["k_resp"]} // this basically controls how much Cr you accumulate
        kb = {params["k_resp_back"]}
        kd = {params["k_day"]}
        kn = {params["k_night"]}
        kcr = {params["k_cr"]}
+       kcrb = {params["k_cr_back"]}
       
        // Reactions:
        photo: P -> Ps; gam * P
@@ -370,14 +402,15 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        k2 = {params["k2"]}
        k3 = {params["k3"]}
        k4 = {params["k4"]}
-       gam1 = {exc_rate[0]}
-       gam2 = {exc_rate[1]}
+       gam1 = {gamma_string[0]}
+       gam2 = {gamma_string[1]}
        k_m = {params["k_maintenance"]}    
        kr = {params["k_resp"]}
        kb = {params["k_resp_back"]}
        kd = {params["k_day"]}
        kn = {params["k_night"]}
        kcr = {params["k_cr"]}
+       kcrb = {params["k_cr_back"]}
       
        // Reactions:
        photo1: P1 -> P1s; gam1 * P1
@@ -389,7 +422,8 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        Aox: Ar + P2o -> Ao + P2; k4 * P2o * Ar
        
        M: Estar -> E; k_m * Estar * Cr
-       DCF: Br + $Co + {params["dcr_stoi"]} Estar -> Bo + Cr + {params["dcr_stoi"]} E; kcr * Br * (Estar^{params["dcr_stoi"]})
+       DCRfw: Ar + $Co + {params["dcr_stoi"]} Estar -> Ao + Cr + {params["dcr_stoi"]} E; kcr * Ar * (Estar^{params["dcr_stoi"]})
+       DCRbw: Ao + Cr + {params["dcr_stoi"]} E -> Ar + $Co + {params["dcr_stoi"]} Estar; kcrb * Ao * (E^{params["dcr_stoi"]})
        
        Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
        Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
@@ -411,14 +445,15 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        k2 = {params["k2"]}
        k3 = {params["k3"]}
        k4 = {params["k4"]}
-       gam1 = {exc_rate[0]}
-       gam2 = {exc_rate[1]}
+       gam1 = {gamma_string[0]}
+       gam2 = {gamma_string[1]}
        k_m = {params["k_maintenance"]}    
        kr = {params["k_resp"]}
        kb = {params["k_resp_back"]}
        kd = {params["k_day"]}
        kn = {params["k_night"]}
        kcr = {params["k_cr"]}
+       kcrb = {params["k_cr_back"]}
       
        // Reactions:
        photo1: P1 -> P1s; gam1 * P1
@@ -450,14 +485,15 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        k2 = {params["k2"]}
        k3 = {params["k3"]}
        k4 = {params["k4"]}
-       gam1 = {exc_rate[0]}
-       gam2 = {exc_rate[1]}
+       gam1 = {gamma_string[0]}
+       gam2 = {gamma_string[1]}
        k_m = {params["k_maintenance"]}    
        kr = {params["k_resp"]}
        kb = {params["k_resp_back"]}
        kd = {params["k_day"]}
        kn = {params["k_night"]}
        kcr = {params["k_cr"]}
+       kcrb = {params["k_cr_back"]}
       
        // Reactions:
        photo1: P1 -> P1s; gam1 * P1
@@ -489,14 +525,15 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        k2 = {params["k2"]}
        k3 = {params["k3"]}
        k4 = {params["k4"]}
-       gam1 = {exc_rate[0]}
-       gam2 = {exc_rate[1]}
+       gam1 = {gamma_string[0]}
+       gam2 = {gamma_string[1]}
        k_m = {params["k_maintenance"]}    
        kr = {params["k_resp"]}
        kb = {params["k_resp_back"]}
        kd = {params["k_day"]}
        kn = {params["k_night"]}
        kcr = {params["k_cr"]}
+       kcrb = {params["k_cr_back"]}
       
        // Reactions:
        photo1: P1 -> P1s; gam1 * P1
@@ -528,14 +565,15 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        k2 = {params["k2"]}
        k3 = {params["k3"]}
        k4 = {params["k4"]}
-       gam1 = {exc_rate[0]}
-       gam2 = {exc_rate[1]}
+       gam1 = {gamma_string[0]}
+       gam2 = {gamma_string[1]}
        k_m = {params["k_maintenance"]}    
        kr = {params["k_resp"]}
        kb = {params["k_resp_back"]}
        kd = {params["k_day"]}
        kn = {params["k_night"]}
        kcr = {params["k_cr"]}
+       kcrb = {params["k_cr_back"]}
       
        // Reactions:
        photo1: P1 -> P1s; gam1 * P1
@@ -567,14 +605,15 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        k2 = {params["k2"]}
        k3 = {params["k3"]}
        k4 = {params["k4"]}
-       gam1 = {exc_rate[0]}
-       gam2 = {exc_rate[1]}
+       gam1 = {gamma_string[0]}
+       gam2 = {gamma_string[1]}
        k_m = {params["k_maintenance"]}    
        kr = {params["k_resp"]}
        kb = {params["k_resp_back"]}
        kd = {params["k_day"]}
        kn = {params["k_night"]}
        kcr = {params["k_cr"]}
+       kcrb = {params["k_cr_back"]}
       
        // Reactions:
        photo1: P1 -> P1s; gam1 * P1
@@ -587,7 +626,8 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        
        M: Estar -> E; k_m * Estar * Cr
 
-       DCF: Br + $Co + {params["dcr_stoi"]} Estar -> Bo + Cr + {params["dcr_stoi"]} E; kcr * Br * (Estar^{params["dcr_stoi"]})
+       DCRfw: Ar + $Co + {params["dcr_stoi"]} Estar -> Ao + Cr + {params["dcr_stoi"]} E; kcr * Ar * (Estar^{params["dcr_stoi"]})
+       DCRbw: Ao + Cr + {params["dcr_stoi"]} E -> Ar + $Co + {params["dcr_stoi"]} Estar; kcrb * Ao * (E^{params["dcr_stoi"]})
        
        Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
        Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
@@ -609,14 +649,15 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        k2 = {params["k2"]}
        k3 = {params["k3"]}
        k4 = {params["k4"]}
-       gam1 = {exc_rate[0]}
-       gam2 = {exc_rate[1]}
+       gam1 = {gamma_string[0]}
+       gam2 = {gamma_string[1]}
        k_m = {params["k_maintenance"]}    
        kr = {params["k_resp"]}
        kb = {params["k_resp_back"]}
        kd = {params["k_day"]}
        kn = {params["k_night"]}
        kcr = {params["k_cr"]}
+       kcrb = {params["k_cr_back"]}
       
        // Reactions:
        photo1: P1 -> P1s; gam1 * P1
@@ -629,7 +670,8 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        
        M: Estar -> E; k_m * Estar * Cr
 
-       DCF: Br + $Co + {params["dcr_stoi"]} Estar -> Bo + Cr + {params["dcr_stoi"]} E; kcr * Br * (Estar^{params["dcr_stoi"]})
+       DCRfw: Ar + $Co + {params["dcr_stoi"]} Estar -> Ao + Cr + {params["dcr_stoi"]} E; kcr * Ar * (Estar^{params["dcr_stoi"]})
+       DCRbw: Ao + Cr + {params["dcr_stoi"]} E -> Ar + $Co + {params["dcr_stoi"]} Estar; kcrb * Ao * (E^{params["dcr_stoi"]})
        
        Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
        Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
@@ -651,14 +693,15 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        k2 = {params["k2"]}
        k3 = {params["k3"]}
        k4 = {params["k4"]}
-       gam1 = {exc_rate[0]}
-       gam2 = {exc_rate[1]}
+       gam1 = {gamma_string[0]}
+       gam2 = {gamma_string[1]}
        k_m = {params["k_maintenance"]}    
        kr = {params["k_resp"]}
        kb = {params["k_resp_back"]}
        kd = {params["k_day"]}
        kn = {params["k_night"]}
        kcr = {params["k_cr"]}
+       kcrb = {params["k_cr_back"]}
       
        // Reactions:
        photo1: P1 -> P1s; gam1 * P1
@@ -671,7 +714,8 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        
        M: Estar -> E; k_m * Estar * Cr
 
-       DCF: Br + $Co + {params["dcr_stoi"]} Estar -> Bo + Cr + {params["dcr_stoi"]} E; kcr * Br * (Estar^{params["dcr_stoi"]})
+       DCRfw: Ar + $Co + {params["dcr_stoi"]} Estar -> Ao + Cr + {params["dcr_stoi"]} E; kcr * Ar * (Estar^{params["dcr_stoi"]})
+       DCRbw: Ao + Cr + {params["dcr_stoi"]} E -> Ar + $Co + {params["dcr_stoi"]} Estar; kcrb * Ao * (E^{params["dcr_stoi"]})
        
        Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
        Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
@@ -699,7 +743,7 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
 
     return r, result, df, out_pref
 
-scheme = "2a"
+scheme = "3a"
 Tstar = 2343
 
 r, result, df, out_pref = run(scheme, Tstar)
