@@ -43,9 +43,6 @@ tmax = 500
 cycles = 10 # only relevant if day/night cycle is turned on
 period = tmax // cycles
 
-def estar_stoi(dg_donor, dg_acceptor, unit):
-    return np.round(-(dg_donor - dg_acceptor) / unit)
-
 @np.vectorize
 def ev_nm(x):
     ''' convert eV to nm and vice-versa '''
@@ -76,19 +73,19 @@ scheme_params = { # reddest usable wavelength of light
         'scheme_to_call': "1a",
         'deltaG_gamma': [ev_nm(611.0), np.nan],
         'resp_stoi': 5,
-        'dcr_stoi': np.nan,
+        'dcr_stoi': 0, # not used for scheme 1
         },
     "1b" : { 
         'scheme_to_call': "1b",
         'deltaG_gamma': [ev_nm(541.0), np.nan],
         'resp_stoi': 5,
-        'dcr_stoi': np.nan,
+        'dcr_stoi': 0,
         },
     "1c" : { 
         'scheme_to_call': "1c",
         'deltaG_gamma': [ev_nm(541.0), np.nan],
         'resp_stoi': 5,
-        'dcr_stoi': np.nan,
+        'dcr_stoi': 0,
         },
     "2a" : { 
         'scheme_to_call': "2a",
@@ -166,7 +163,7 @@ def run(scheme, Tstar, params=params):
     wrapper to set up all the antimony models, pick the one
     you want with the parameters you want, simulate, plot
     the results and output relevant data.
-    i know this is ugly as fuck, believe me. but because of the
+    having one massive f-string is ugly, i know. but because of the
     multiple schemes, the parameters that need to be set at runtime
     and some of the ways that antimony works, this is currently the
     most flexible usage situation i can come up with.
@@ -270,42 +267,45 @@ def run(scheme, Tstar, params=params):
     /* NB: every model must have a name of the form `scheme_SCHEMELABEL`,
     * have all of the rates that are specified at the bottom as arguments,
     * in the right order, and include the species definitions as below.
-    * This is to minimise the amount of per-scheme code we have to write;
-    * it eliminates the need to duplicate the rate declarations and
+    * the rate arguments are so that we can just set the rates in the
+    * final bit, sim_{scheme}, and the species are so we can initialise
+    * all the populations there as well.
+    * This minimises the amount of per-scheme code we have to write
+    * by eliminating the need to duplicate the rate declarations and
     * species initialisations for each scheme at the cost of this
     * bit of boilerplate, but I think it's a decent tradeoff. */
 
-    model scheme_1a(gam, k1, k2, k3, k4, km, kr, kb, krc, krcb, kd, kn)
+    model scheme_1a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
        // List of reactions. form is "Label: Reactants -> Products; Rate"
-       photo : P1        -> P1s      ; gam * P1
+       photo : P1        -> P1s      ; gam1 * P1
        Cred  : P1s + $Co -> P1o + Cr ; k1 * P1s
        Dox   : $Dr + P1o -> Do + P1  ; k2 * P1o
        M     : maintenance(km, E, Estar, Cr);
        R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
     end
 
-    model scheme_1b(gam, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+    model scheme_1b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
-       photo : P1            -> P1s              ; gam * P1
+       photo : P1            -> P1s              ; gam1 * P1
        Cred  : P1s + $Co + E -> P1o + Cr + Estar ; k1 * P1s * E
        Dox   : $Dr + P1o     -> Do + P1          ; k2 * P1o
        M     : maintenance(km, E, Estar, Cr);
        R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
     end
 
-    model scheme_1c(gam, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+    model scheme_1c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
-       photo : P1            -> P1s             ; gam * P1
+       photo : P1            -> P1s             ; gam1 * P1
        Cred  : P1s + $Co     -> P1o + Cr        ; k1 * P1s
        Dox   : $Dr + P1o + E -> Do + P1 + Estar ; k2 * P1o * E
        M     : maintenance(km, E, Estar, Cr);
        R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
     end
 
-    model scheme_2a(gam, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+    model scheme_2a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
-       photo : P1        -> P1s      ; gam * P1
+       photo : P1        -> P1s      ; gam1 * P1
        Ared  : P1s + Ao  -> P1o + Ar ; k1 * P1s
        Dox   : $Dr + P1o -> Do + P1  ; k2 * P1o
        D     : DCR_noE(kcr, kcrb, Ar, Ao, Cr, Co)
@@ -313,9 +313,9 @@ def run(scheme, Tstar, params=params):
        R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
     end
 
-    model scheme_2b(gam, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+    model scheme_2b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
-       photo : P1           -> P1s              ; gam * P1
+       photo : P1           -> P1s              ; gam1 * P1
        Ared  : P1s + Ao + E -> P1o + Ar + Estar ; k1 * P1s * E
        Dox   : $Dr + P1o    -> Do + P1          ; k2 * P1o
        D     : DCR_noE(kcr, kcrb, Ar, Ao, Cr, Co)
@@ -323,9 +323,9 @@ def run(scheme, Tstar, params=params):
        R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
     end
 
-    model scheme_2c(gam, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+    model scheme_2c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
-       photo : P1            -> P1s             ; gam * P1
+       photo : P1            -> P1s             ; gam1 * P1
        Ared  : P1s + Ao      -> P1o + Ar        ; k1 * P1s
        Dox   : $Dr + P1o + E -> Do + P1 + Estar ; k2 * P1o * E
        D     : DCR_noE(kcr, kcrb, Ar, Ao, Cr, Co)
@@ -333,9 +333,9 @@ def run(scheme, Tstar, params=params):
        R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
     end
 
-    model scheme_3a(gam, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+    model scheme_3a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
-       photo : P1        -> P1s      ; gam * P1
+       photo : P1        -> P1s      ; gam1 * P1
        Ared  : P1s + Ao  -> P1o + Ar ; k1 * P1s * Ao
        Dox   : $Dr + P1o -> Do + P1  ; k2 * P1o
        D     : DCR_E(kcr, kcrb, Ar, Ao, Cr, Co, E, Estar)
@@ -343,9 +343,9 @@ def run(scheme, Tstar, params=params):
        R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
     end
 
-    model scheme_3b(gam, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+    model scheme_3b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
-       photo : P1           -> P1s              ; gam * P1
+       photo : P1           -> P1s              ; gam1 * P1
        Ared  : P1s + Ao + E -> P1o + Ar + Estar ; k1 * P1s * Ao
        Dox   : $Dr + P1o    -> Do + P1          ; k2 * P1o
        D     : DCR_E(kcr, kcrb, Ar, Ao, Cr, Co, E, Estar)
@@ -353,9 +353,9 @@ def run(scheme, Tstar, params=params):
        R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
     end
 
-    model scheme_3c(gam, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+    model scheme_3c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
-       photo : P1            -> P1s             ; gam * P1
+       photo : P1            -> P1s             ; gam1 * P1
        Ared  : P1s + Ao      -> P1o + Ar        ; k1 * P1s * Ao
        Dox   : $Dr + P1o + E -> Do + P1 + Estar ; k2 * P1o
        D     : DCR_E(kcr, kcrb, Ar, Ao, Cr, Co, E, Estar)
@@ -370,7 +370,8 @@ def run(scheme, Tstar, params=params):
         k2 = {params["k2"]}
         k3 = {params["k3"]}
         k4 = {params["k4"]}
-        gam := {gamma_string[0]}
+        gam1 := {gamma_string[0]}
+        gam2 := {gamma_string[1]}
         km = {params["k_maintenance"]}
         kr = {params["k_resp"]} // this basically controls how much Cr you accumulate
         kb = {params["k_resp_back"]}
@@ -378,7 +379,7 @@ def run(scheme, Tstar, params=params):
         kn = {params["k_night"]}
         kcr = {params["k_cr"]}
         kcrb = {params["k_cr_back"]}
-        A: scheme_{scheme_to_call}(gam, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+        A: scheme_{scheme_to_call}(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
         // Species initializations:
         A.P1 = 1;    A.P1s = 0; A.P1o = 0;
         A.P2 = 1;    A.P2s = 0; A.P2o = 0;
@@ -391,6 +392,9 @@ def run(scheme, Tstar, params=params):
     """)
     result = r.simulate(0, cycles*period, cycles*period + 1)
     df_file = os.path.join(output_dir, f"{out_pref}_scheme_{scheme}.csv")
+    # results is a roadrunner.NamedArray not a structured numpy array
+    # so the relevant object method is colnames not fields
+    # (check dir(object) to look at all the methods! useful)
     df = pd.DataFrame(result, columns=result.colnames)
     df.to_csv(df_file)
 
@@ -402,15 +406,16 @@ def simple_plot(result):
     ax.plot(result['time'], result['[A_Estar]'], label='E*', color='forestgreen')
     ax.plot(result['time'], result['[A_Do]'], label='Dox', color='gold')
     ax.legend()
-    plt.show()
     return plt
 
-scheme = "4c"
-Tstar = 2343
-
-r, result, df, out_pref = run(scheme, Tstar)
-r.plot(result, logy=False, ylim=[0.001, 1.2 * np.max(result[:, 1:])])
-# results is a roadrunner.NamedArray not a structured numpy array
-# so the relevant object method is colnames not fields
-# (check dir(object) to look at all the methods! useful)
-plot_file = os.path.join(output_dir, f"{out_pref}_scheme_{scheme}.csv")
+for Tstar in light.phz_stars['Tstar']:
+    for scheme in scheme_params.keys():
+        try:
+            r, result, df, out_pref = run(scheme, Tstar)
+        except RuntimeError:
+            print("Runtime error in r.simulate() for scheme {scheme}")
+            continue
+        plot = simple_plot(result)
+        plot.show()
+        plot_file = os.path.join(output_dir, f"{out_pref}_scheme_{scheme}.pdf")
+        plot.savefig(plot_file)
