@@ -34,5 +34,4 @@ Finally there's a section that sets all the variables and initialises the concen
 ## TO DO
 
 - [ ] Check notebook setup and provide an example .ipynb for use in the tellurium viewer or jupyter or wherever
-- [ ] Figure out if the models themselves can now be put in a separate txt file and then loaded in by antimony; this didn't work before, but *maybe* if we hard code the stoichiometries it will?
 - [ ] Settle on where the `run()` wrapper abstraction should end - should it include the plots? Do the plots and return the filenames? What's the intended workflow here
