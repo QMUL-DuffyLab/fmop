@@ -406,7 +406,7 @@ def simple_plot(result):
     ax.plot(result['time'], result['[A_Estar]'], label='E*', color='forestgreen')
     ax.plot(result['time'], result['[A_Do]'], label='Dox', color='gold')
     ax.legend()
-    return plt
+    return fig, ax
 
 for Tstar in light.phz_stars['Tstar']:
     for scheme in scheme_params.keys():
@@ -415,7 +415,8 @@ for Tstar in light.phz_stars['Tstar']:
         except RuntimeError:
             print("Runtime error in r.simulate() for scheme {scheme}")
             continue
-        plot = simple_plot(result)
-        plot.show()
+        fig, ax = simple_plot(result)
+        plt.show()
         plot_file = os.path.join(output_dir, f"{out_pref}_scheme_{scheme}.pdf")
-        plot.savefig(plot_file)
+        fig.savefig(plot_file)
+        plt.close()
