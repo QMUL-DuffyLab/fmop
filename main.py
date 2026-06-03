@@ -55,37 +55,99 @@ dg_h2o = -5.10 # in eV
 dg_co2 = -3.85 # in eV
 dg_p = dg_co2 - dg_h2o
 
-# note that these all have two entries: this is because
-# later two-photon schemes require it and they're called
-# in the f-string as exc_rate[0], exc_rate[1], so that list
-# must have two members
-dg_gamma = { # reddest usable wavelength of light
-    "1a": [ev_nm(611.0), np.nan],
-    "1b": [ev_nm(541.0), np.nan],
-    "1c": [ev_nm(541.0), np.nan],
-    "2a": [ev_nm(611.0), np.nan],
-    "2b": [ev_nm(541.0), np.nan],
-    "2c": [ev_nm(541.0), np.nan],
-    "3a": [ev_nm(700.0), np.nan],
-    "3b": [ev_nm(611.0), np.nan],
-    "3c": [ev_nm(611.0), np.nan],
-    "4": [ev_nm(1192.0), np.nan],
-    "5a": [5 * ten_kbt, np.nan],
-    "5b": [5 * ten_kbt, np.nan],
-    "6": [6.8 * ten_kbt, 4 * ten_kbt],
-    "7a": [ev_nm(882.0), ev_nm(882.0)],
-    "7b": [ev_nm(744.0), ev_nm(882.0)],
-    "7c": [ev_nm(744.0), ev_nm(744.0)],
-    "7d": [4 * ten_kbt, dg_p + 3 * ten_kbt],
-    "8a": [ev_nm(969.0), ev_nm(969.0)],
-    "8b": [ev_nm(805.0), ev_nm(969.0)],
-    "8c": [ev_nm(805.0), ev_nm(805.0)],
+'''
+various scheme-dependent parameters.
+note that scheme_to_call is there because some of the schemes
+are actually identical apart from the stoichiometry of the
+dark carbon reduction reactions. sadly we can't have a number as
+a parameter to an antimony function (there's another comment about
+this below) so we need to f-string it in, and I didn't want to leave
+the stoichiometries as defined constants like they were before because
+then if you forget to change them when changing scheme you'll get
+incorrect results. so now they are here in a big dict of dicts instead.
+maybe a bit inelegant but it does the trick.
+also note that deltaG_gamma all have two entries: this is because
+later two-photon schemes require it and they're called
+in the f-string as exc_rate[0], exc_rate[1], so that list
+must have two members
+'''
+scheme_params = { # reddest usable wavelength of light
+    "1a" : { 
+        'scheme_to_call': "1a",
+        'deltaG_gamma': [ev_nm(611.0), np.nan],
+        'resp_stoi': 5,
+        'dcr_stoi': np.nan,
+        },
+    "1b" : { 
+        'scheme_to_call': "1b",
+        'deltaG_gamma': [ev_nm(541.0), np.nan],
+        'resp_stoi': 5,
+        'dcr_stoi': np.nan,
+        },
+    "1c" : { 
+        'scheme_to_call': "1c",
+        'deltaG_gamma': [ev_nm(541.0), np.nan],
+        'resp_stoi': 5,
+        'dcr_stoi': np.nan,
+        },
+    "2a" : { 
+        'scheme_to_call': "2a",
+        'deltaG_gamma': [ev_nm(611.0), np.nan],
+        'resp_stoi': 5,
+        'dcr_stoi': 1,
+        },
+    "2b" : { 
+        'scheme_to_call': "2b",
+        'deltaG_gamma': [ev_nm(541.0), np.nan],
+        'resp_stoi': 5,
+        'dcr_stoi': 1,
+        },
+    "2c" : { 
+        'scheme_to_call': "2c",
+        'deltaG_gamma': [ev_nm(541.0), np.nan],
+        'resp_stoi': 5,
+        'dcr_stoi': 1,
+        },
+    "3a" : { 
+        'scheme_to_call': "3a",
+        'deltaG_gamma': [ev_nm(700.0), np.nan],
+        'resp_stoi': 5,
+        'dcr_stoi': 1,
+        },
+    "3b" : { 
+        'scheme_to_call': "3b",
+        'deltaG_gamma': [ev_nm(611.0), np.nan],
+        'resp_stoi': 5,
+        'dcr_stoi': 1,
+        },
+    "3c" : { 
+        'scheme_to_call': "3c",
+        'deltaG_gamma': [ev_nm(611.0), np.nan],
+        'resp_stoi': 5,
+        'dcr_stoi': 1,
+        },
+    "4a"  : { 
+        'scheme_to_call': "3a",
+        'deltaG_gamma': [ev_nm(1192.0), np.nan],
+        'resp_stoi': 5,
+        'dcr_stoi': 4,
+        },
+    "4b"  : { 
+        'scheme_to_call': "3b",
+        'deltaG_gamma': [ev_nm(954.0), np.nan],
+        'resp_stoi': 5,
+        'dcr_stoi': 4,
+        },
+    "4c"  : { 
+        'scheme_to_call': "3c",
+        'deltaG_gamma': [ev_nm(954.0), np.nan],
+        'resp_stoi': 5,
+        'dcr_stoi': 4,
+        },
     }
 
 params = {
     "light"         : "switch",
-    "estoi"         : 5,
-    "dcr_stoi"      : 1,
     "k_resp"        : 1,
     "k_resp_back"   : 1,
     "k1"            : 1,
@@ -99,8 +161,7 @@ params = {
     "k_cr_back"     : 1,
 }
 
-def run(scheme, Tstar, params=params, dg=dg_gamma,
-        cycles=cycles, period=period):
+def run(scheme, Tstar, params=params):
     '''
     wrapper to set up all the antimony models, pick the one
     you want with the parameters you want, simulate, plot
@@ -114,12 +175,11 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
     ---------
 
     `scheme` should be a *string* corresponding to a key in
-    `dg_gamma` and a named scheme in the long f-string below.
+    `scheme_params` and a named scheme in the long f-string below.
     `Tstar` should match one of the stellar temperatures in light.py,
     which are a bunch of effective stellar temperatures taken from the
     isochrones of Baraffe et al.
     `params` is a dict of the light type, stoichiometries and rates.
-    `dg` is a dict of the photon energy gaps for each scheme
     light type should be "periodic", "switch" or "constant"
 
     outputs
@@ -127,16 +187,18 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
 
     NB: haven't fixed what these will be yet
     '''
-    if scheme not in dg_gamma.keys():
-        raise KeyError(f"Incorrect scheme provided to run(). Scheme = {scheme}, allowed schemes are {dg_gamma.keys()}")
+    if scheme not in scheme_params.keys():
+        raise KeyError(f"Incorrect scheme provided to run(). Scheme = {scheme}, allowed schemes are {scheme_params.keys()}")
     if Tstar not in light.phz_stars['Tstar']:
         raise ValueError(f"Incorrect stellar temperature provided to run(). Tstar = {Tstar}, allowed values are {light.phz_stars['Tstar']}")
     print(f"Ts = {Tstar}, Scheme {scheme}")
     spectrum, out_pref = light.stellar_hz_midpoint(Tstar)
     total_flux = light.micromole_in_region(spectrum, xlim[0], ev_nm(dg_p))
+    sc_p = scheme_params[scheme]
+    scheme_to_call = sc_p["scheme_to_call"]
 
     exc_rate = []
-    for dgg in dg_gamma[scheme]:
+    for dgg in sc_p['deltaG_gamma']:
         uf = light.micromole_in_region(spectrum, xlim[0], ev_nm(dgg))
         exc_rate.append(uf/total_flux)
         
@@ -196,13 +258,13 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
         // this is currently irreversible, per Chris
         // to make reversible just uncomment the backward reaction
         species Ar, Ao, Cr, Co, E, Estar
-        fw: Ar + $Co + {params["dcr_stoi"]} Estar -> Ao + Cr + {params["dcr_stoi"]} E; kcr * Ar * (Estar^{params["dcr_stoi"]})
-        // bw: Ao + Cr + {params["dcr_stoi"]} E -> Ar + $Co + {params["dcr_stoi"]} Estar; kcrb * Ao * Cr * (E^{params["dcr_stoi"]})
+        fw: Ar + $Co + {sc_p["dcr_stoi"]} Estar -> Ao + Cr + {sc_p["dcr_stoi"]} E; kcr * Ar * (Estar^{sc_p["dcr_stoi"]})
+        // bw: Ao + Cr + {sc_p["dcr_stoi"]} E -> Ar + $Co + {sc_p["dcr_stoi"]} Estar; kcrb * Ao * Cr * (E^{sc_p["dcr_stoi"]})
     end
 
     model respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
-       fw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
-       bw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
+       fw: Do + Cr + {sc_p["resp_stoi"]} E -> $Dr + $Co + {sc_p["resp_stoi"]} Estar; kr*Do*Cr*(E^{sc_p["resp_stoi"]});
+       bw: $Dr + $Co + {sc_p["resp_stoi"]} Estar -> Do + Cr + {sc_p["resp_stoi"]} E; kb*(Estar^{sc_p["resp_stoi"]});
     end
     
     /* NB: every model must have a name of the form `scheme_SCHEMELABEL`,
@@ -301,42 +363,6 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
        R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
     end
 
-    model scheme_4()
-       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
-       // Reactions:
-       photo: P1 -> P1s; gam * P1
-       Ared: P1s + Ao -> P1o + Ar; k1 * P1s * Ao
-       Dox: $Dr + P1o -> Do + P1; k2 * P1o
-       Cred: Ar + Co + {params["estoi"]} Estar -> Ao + Cr + {params["estoi"]} E; kcr * Ar * Co * (Estar^{params["estoi"]})
-       M: Estar -> E; km * Estar * Cr
-       Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
-       Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
-    end
-
-    model scheme_5a(gam, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
-       // Reactions:
-       photo: P1 -> P1s; gam * P1
-       Ared: P1s + Ao + E -> P1o + Ar + Estar; k1 * P1s * Ao * E
-       Dox: $Dr + P1o -> Do + P1; k2 * P1o
-       Cred: Ar + Co + {params["estoi"]} Estar -> Ao + Cr + {params["estoi"]} E; kcr * Ar * Co * (Estar^{params["estoi"]})
-       M: Estar -> E; km * Estar * Cr
-       Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
-       Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
-    end
-
-    model scheme_5b(gam, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
-       // Reactions:
-       photo: P1 -> P1s; gam * P1
-       Ared: P1s + Ao -> P1o + Ar; k1 * P1s * Ao
-       Dox: $Dr + P1o + E -> Do + P1 + Estar; k2 * P1o * E
-       Cred: Ar + Co + {params["estoi"]} Estar -> Ao + Cr + {params["estoi"]} E; kcr * Ar * Co * (Estar^{params["estoi"]})
-       M: Estar -> E; km * Estar * Cr
-       Rfw: Do + Cr + {params["estoi"]} E -> $Dr + $Co + {params["estoi"]} Estar; kr*Do*Cr*(E^{params["estoi"]});
-       Rbw: $Dr + $Co + {params["estoi"]} Estar -> Do + Cr + {params["estoi"]} E; kb*(Estar^{params["estoi"]});
-    end
-
     // pull in whichever scheme you want from above and run that model
     model sim()
         // Variable initialization:
@@ -352,7 +378,7 @@ def run(scheme, Tstar, params=params, dg=dg_gamma,
         kn = {params["k_night"]}
         kcr = {params["k_cr"]}
         kcrb = {params["k_cr_back"]}
-        A: scheme_{scheme}(gam, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+        A: scheme_{scheme_to_call}(gam, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
         // Species initializations:
         A.P1 = 1;    A.P1s = 0; A.P1o = 0;
         A.P2 = 1;    A.P2s = 0; A.P2o = 0;
@@ -379,7 +405,7 @@ def simple_plot(result):
     plt.show()
     return plt
 
-scheme = "3a"
+scheme = "4c"
 Tstar = 2343
 
 r, result, df, out_pref = run(scheme, Tstar)
