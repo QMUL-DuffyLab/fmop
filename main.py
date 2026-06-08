@@ -24,6 +24,7 @@ import os
 import tellurium as te
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import matplotlib.pyplot as plt
 import roadrunner
 from scipy.constants import h, c, e, Boltzmann
@@ -39,7 +40,7 @@ ten_kbt = 0.26
 xlim = [400.0, 2000.0]
 nx = int(xlim[1] - xlim[0])
 
-tmax = 500
+tmax = 5000
 cycles = 10 # only relevant if day/night cycle is turned on
 period = tmax // cycles
 
@@ -232,10 +233,10 @@ def run(scheme, Tstar, params=params):
     * correspond to the ones in the main schemes) */
 
     // currently unused
-    model storage(kn, kd, Cr, Cstore)
+    model storage(kd, kn, Cr, Cstore)
        species Cr, Cstore
-       fw: Cr -> Cstore; kd * Cr
-       bw: Cstore -> Cr; kn * Cstore
+       fw : Cr     -> Cstore ; kd * Cr
+       //bw : Cstore -> Cr     ; kn * Cstore
     end
 
     model maintenance(km, E, Estar, Cr)
@@ -283,6 +284,7 @@ def run(scheme, Tstar, params=params):
        Dox   : $Dr + P1o -> Do + P1  ; k2 * P1o
        M     : maintenance(km, E, Estar, Cr);
        R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
+       S     : storage(kd, kn, C, Cstore)
     end
 
     model scheme_1b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -292,6 +294,7 @@ def run(scheme, Tstar, params=params):
        Dox   : $Dr + P1o     -> Do + P1          ; k2 * P1o
        M     : maintenance(km, E, Estar, Cr);
        R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
+       S     : storage(kd, kn, C, Cstore)
     end
 
     model scheme_1c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -301,6 +304,7 @@ def run(scheme, Tstar, params=params):
        Dox   : $Dr + P1o + E -> Do + P1 + Estar ; k2 * P1o * E
        M     : maintenance(km, E, Estar, Cr);
        R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
+       S     : storage(kd, kn, C, Cstore)
     end
 
     model scheme_2a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -311,6 +315,7 @@ def run(scheme, Tstar, params=params):
        D     : DCR_noE(kcr, kcrb, Ar, Ao, Cr, Co)
        M     : maintenance(km, E, Estar, Cr);
        R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
+       S     : storage(kd, kn, C, Cstore)
     end
 
     model scheme_2b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -321,6 +326,7 @@ def run(scheme, Tstar, params=params):
        D     : DCR_noE(kcr, kcrb, Ar, Ao, Cr, Co)
        M     : maintenance(km, E, Estar, Cr);
        R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
+       S     : storage(kd, kn, C, Cstore)
     end
 
     model scheme_2c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -331,6 +337,7 @@ def run(scheme, Tstar, params=params):
        D     : DCR_noE(kcr, kcrb, Ar, Ao, Cr, Co)
        M     : maintenance(km, E, Estar, Cr);
        R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
+       S     : storage(kd, kn, C, Cstore)
     end
 
     model scheme_3a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -341,6 +348,7 @@ def run(scheme, Tstar, params=params):
        D     : DCR_E(kcr, kcrb, Ar, Ao, Cr, Co, E, Estar)
        M     : maintenance(km, E, Estar, Cr);
        R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
+       S     : storage(kd, kn, C, Cstore)
     end
 
     model scheme_3b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -351,6 +359,7 @@ def run(scheme, Tstar, params=params):
        D     : DCR_E(kcr, kcrb, Ar, Ao, Cr, Co, E, Estar)
        M     : maintenance(km, E, Estar, Cr);
        R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
+       S     : storage(kd, kn, C, Cstore)
     end
 
     model scheme_3c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -361,6 +370,7 @@ def run(scheme, Tstar, params=params):
        D     : DCR_E(kcr, kcrb, Ar, Ao, Cr, Co, E, Estar)
        M     : maintenance(km, E, Estar, Cr);
        R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
+       S     : storage(kd, kn, C, Cstore)
     end
 
     // pull in whichever scheme you want from above and run that model
@@ -402,21 +412,63 @@ def run(scheme, Tstar, params=params):
 
 def simple_plot(result):
     fig, ax = plt.subplots()
-    ax.plot(result['time'], result['[A_Cr]'], label='Cr', color='firebrick')
-    ax.plot(result['time'], result['[A_Estar]'], label='E*', color='forestgreen')
     ax.plot(result['time'], result['[A_Do]'], label='Dox', color='gold')
+    ax.plot(result['time'], result['[A_Ar]'], label='Ared', color='black')
+    ax.plot(result['time'], result['[A_Cr]'], label='Cr', color='firebrick')
+    ax.plot(result['time'], result['[A_Cstore]'], label='Cstore', color='royalblue')
+    ax.plot(result['time'], result['[A_Estar]'], label='E*', color='forestgreen')
     ax.legend()
     return fig, ax
 
+def loop_over_all():
+    for Tstar in light.phz_stars['Tstar']:
+        for scheme in scheme_params.keys():
+            try:
+                r, result, df, out_pref = run(scheme, Tstar)
+            except RuntimeError:
+                print("Runtime error in r.simulate() for scheme {scheme}")
+                continue
+            fig, ax = simple_plot(result)
+            plt.show()
+            plot_file = os.path.join(output_dir, f"{out_pref}_scheme_{scheme}.pdf")
+            fig.savefig(plot_file)
+            plt.close()
+
+#loop_over_all()
+
+columns = ['C_red', 'D_ox', 'A_red', 'C_store', 'Estar']
+col_legends = [r'$ C_{\text{red}} $', r'$ D_{\text{ox}} $',
+               r'$ A_{\text{red}} $', r'$ C_{\text{store}} $',
+               r'$ E_{*} $']
+idx = pd.Index(scheme_params.keys(), name="scheme")
 for Tstar in light.phz_stars['Tstar']:
-    for scheme in scheme_params.keys():
+    spectrum, out_pref = light.stellar_hz_midpoint(Tstar)
+    data = np.zeros((len(scheme_params.keys()), len(columns)), dtype=float)
+    output_file = os.path.join(output_dir, f"{out_pref}_steady_state.csv")
+    for ii, scheme in enumerate(scheme_params.keys()):
+        filename = os.path.join(output_dir, f"{out_pref}_scheme_{scheme}.csv")
         try:
-            r, result, df, out_pref = run(scheme, Tstar)
-        except RuntimeError:
-            print("Runtime error in r.simulate() for scheme {scheme}")
+            df = pd.read_csv(filename, index_col=0)
+        except FileNotFoundError:
+            print(f"File {filename} not found. oopsie")
             continue
-        fig, ax = simple_plot(result)
-        plt.show()
-        plot_file = os.path.join(output_dir, f"{out_pref}_scheme_{scheme}.pdf")
-        fig.savefig(plot_file)
-        plt.close()
+        ss_vals = df.loc[tmax//2]
+        arr = np.array([ss_vals['[A_Cr]'], ss_vals['[A_Do]'], 
+                   ss_vals['[A_Ar]'], ss_vals['[A_Cstore]'],
+                   ss_vals['[A_Estar]']])
+        data[ii, :] = arr
+    df = pd.DataFrame(data, columns = columns, index = idx)
+    df.to_csv(output_file)
+    fig, ax = plt.subplots()
+    for cn, cl in zip(columns, col_legends):
+        ax.plot(df.index.to_numpy(), df[cn].to_numpy(),
+                label=cl, marker='o', ms=5.0)
+    ax.legend()
+    ax.set_xlabel("Scheme")
+    ax.set_ylabel("concentration values")
+    plt.grid(visible=True)
+    plt.show()
+    plot_file = os.path.splitext(output_file)[0] + ".pdf"
+    print(plot_file)
+    fig.savefig(plot_file)
+    plt.close()
