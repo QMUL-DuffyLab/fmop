@@ -490,4 +490,5 @@ def loop_over_all():
         fig.savefig(plot_file)
         plt.close()
 
-loop_over_all()  
+if __name__ == "__main__":
+    loop_over_all()  
