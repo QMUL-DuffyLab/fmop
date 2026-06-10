@@ -24,13 +24,11 @@ import os
 import tellurium as te
 import numpy as np
 import pandas as pd
-import seaborn as sns
 import matplotlib.pyplot as plt
-import roadrunner
 from scipy.constants import h, c, e, Boltzmann
 import light
 
-output_dir = "out"
+base_dir = "out"
 Temperature = 300
 hcnm = (h * c) / (1.0E-9)
 beta_cm = 1.0 / (Boltzmann * Temperature * (1. / (100.0 * c))) # in wavenumbers
@@ -40,7 +38,7 @@ ten_kbt = 0.26
 xlim = [400.0, 2000.0]
 nx = int(xlim[1] - xlim[0])
 
-tmax = 5000
+tmax = 10000
 cycles = 10 # only relevant if day/night cycle is turned on
 period = tmax // cycles
 
@@ -146,6 +144,8 @@ scheme_params = { # reddest usable wavelength of light
 
 params = {
     "light"         : "switch",
+    "intensity"     : "low",
+    "maintenance_C" : True,
     "k_resp"        : 1,
     "k_resp_back"   : 1,
     "k1"            : 1,
@@ -158,6 +158,16 @@ params = {
     "k_cr"          : 1,
     "k_cr_back"     : 1,
 }
+
+
+
+
+# for plotting steady state values
+columns = ['C_red', 'D_ox', 'A_red', 'C_store', 'Estar']
+col_legends = [r'$ C_{\text{red}} $', r'$ D_{\text{ox}} $',
+               r'$ A_{\text{red}} $', r'$ C_{\text{store}} $',
+               r'$ E_{*} $']
+idx = pd.Index(scheme_params.keys(), name="scheme")
 
 def run(scheme, Tstar, params=params):
     '''
@@ -194,13 +204,32 @@ def run(scheme, Tstar, params=params):
     total_flux = light.micromole_in_region(spectrum, xlim[0], ev_nm(dg_p))
     sc_p = scheme_params[scheme]
     scheme_to_call = sc_p["scheme_to_call"]
+    
+    output_dir = os.path.join(base_dir,
+                f"maintenance_Cred_{params['maintenance_C']}",
+                f"{params['intensity']}_intensity")
+    os.makedirs(output_dir, exist_ok=True)
 
-    exc_rate = []
-    for dgg in sc_p['deltaG_gamma']:
+    exc_rate = np.zeros(len(sc_p['deltaG_gamma']), dtype=float)
+    for i, dgg in enumerate(sc_p['deltaG_gamma']):
         uf = light.micromole_in_region(spectrum, xlim[0], ev_nm(dgg))
-        exc_rate.append(uf/total_flux)
+        exc_rate[i] = uf/total_flux
         
     print(f"Excitation rate(s): {exc_rate}")
+    
+    if params["maintenance_C"]:
+        maint_str = " * Cr"
+    else:
+        maint_str = ""
+        
+    if params["intensity"] == "high":
+        exc_rate *= 10
+    elif params["intensity"] == "medium":
+        exc_rate *= 1 # for clarity
+    elif params["intensity"] == "low":
+        exc_rate *= 0.1
+    else:
+        raise ValueError(f"params['intensity'] value = {params['intensity']} not recognised. Should be low, medium or high")
 
     if params["light"] == "periodic":
         gamma_string = [f"square_wave(time, {period}, {er})" for er in exc_rate]
@@ -208,6 +237,8 @@ def run(scheme, Tstar, params=params):
         gamma_string = [f"switch_off(time, {tmax//2}, {er})" for er in exc_rate]
     elif params["light"] == "constant":
         gamma_string = [f"constant(time, {er})" for er in exc_rate]
+    else:
+        raise ValueError(f"params['light'] value = {params['light']} not recognised. Should be periodic, switch or constant")
 
     r = te.loada(f"""
     // three functions for light input
@@ -236,19 +267,19 @@ def run(scheme, Tstar, params=params):
     model storage(kd, kn, Cr, Cstore)
        species Cr, Cstore
        fw : Cr     -> Cstore ; kd * Cr
-       //bw : Cstore -> Cr     ; kn * Cstore
+       // bw : Cstore -> Cr     ; kn * Cstore
     end
 
     model maintenance(km, E, Estar, Cr)
         species E, Estar, Cr
-        Estar -> E; km * Estar * Cr
+        Estar -> $E; km * Estar {maint_str}
     end
 
     // reversible dark carbon reduction with no energy production
     model DCR_noE(kcr, kcrb, Ar, Ao, Cr, Co)
         species Ar, Ao, Cr, Co
-        fw: Ar + $Co -> Ao + Cr; kcr * Ar
-        bw: Ao + Cr -> Ar + $Co; kcrb * Ao * Cr
+        fw: Ar + $Co -> $Ao + Cr; kcr * Ar
+        bw: $Ao + Cr -> Ar + $Co; kcrb * $Ao * Cr
     end
 
     // dark carbon reduction with energy production
@@ -256,13 +287,13 @@ def run(scheme, Tstar, params=params):
         // this is currently irreversible, per Chris
         // to make reversible just uncomment the backward reaction
         species Ar, Ao, Cr, Co, E, Estar
-        fw: Ar + $Co + {sc_p["dcr_stoi"]} Estar -> Ao + Cr + {sc_p["dcr_stoi"]} E; kcr * Ar * (Estar^{sc_p["dcr_stoi"]})
-        // bw: Ao + Cr + {sc_p["dcr_stoi"]} E -> Ar + $Co + {sc_p["dcr_stoi"]} Estar; kcrb * Ao * Cr * (E^{sc_p["dcr_stoi"]})
+        fw: Ar + $Co + {sc_p["dcr_stoi"]} Estar -> $Ao + Cr + {sc_p["dcr_stoi"]} $E; kcr * Ar * (Estar^{sc_p["dcr_stoi"]})
+        // bw: $Ao + Cr + {sc_p["dcr_stoi"]} $E -> Ar + $Co + {sc_p["dcr_stoi"]} Estar; kcrb * $Ao * Cr * ($E^{sc_p["dcr_stoi"]})
     end
 
     model respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
-       fw: Do + Cr + {sc_p["resp_stoi"]} E -> $Dr + $Co + {sc_p["resp_stoi"]} Estar; kr*Do*Cr*(E^{sc_p["resp_stoi"]});
-       bw: $Dr + $Co + {sc_p["resp_stoi"]} Estar -> Do + Cr + {sc_p["resp_stoi"]} E; kb*(Estar^{sc_p["resp_stoi"]});
+       fw: Do + Cr + {sc_p["resp_stoi"]} $E -> $Dr + $Co + {sc_p["resp_stoi"]} Estar; kr*Do*Cr*($E^{sc_p["resp_stoi"]});
+       bw: $Dr + $Co + {sc_p["resp_stoi"]} Estar -> Do + Cr + {sc_p["resp_stoi"]} $E; kb*(Estar^{sc_p["resp_stoi"]});
     end
     
     /* NB: every model must have a name of the form `scheme_SCHEMELABEL`,
@@ -280,97 +311,97 @@ def run(scheme, Tstar, params=params):
        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
        // List of reactions. form is "Label: Reactants -> Products; Rate"
        photo : P1        -> P1s      ; gam1 * P1
-       Cred  : P1s + $Co -> P1o + Cr ; k1 * P1s
-       Dox   : $Dr + P1o -> Do + P1  ; k2 * P1o
-       M     : maintenance(km, E, Estar, Cr);
-       R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
-       S     : storage(kd, kn, C, Cstore)
+       Cred  : P1s + $Co -> P1o + Cr ; k1 * P1s * $Co
+       Dox   : $Dr + P1o -> Do + P1  ; k2 * P1o * $Dr
+       M     : maintenance(km, $E, Estar, Cr);
+       R     : respiration(kr, kb, Do, $Dr, $Co, Cr, $E, Estar)
+       S     : storage(kd, kn, Cr, Cstore)
     end
 
     model scheme_1b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
        photo : P1            -> P1s              ; gam1 * P1
-       Cred  : P1s + $Co + E -> P1o + Cr + Estar ; k1 * P1s * E
-       Dox   : $Dr + P1o     -> Do + P1          ; k2 * P1o
-       M     : maintenance(km, E, Estar, Cr);
-       R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
-       S     : storage(kd, kn, C, Cstore)
+       Cred  : P1s + $Co + E -> P1o + Cr + Estar ; k1 * P1s * $Co * $E
+       Dox   : $Dr + P1o     -> Do + P1          ; k2 * P1o * $Dr
+       M     : maintenance(km, $E, Estar, Cr);
+       R     : respiration(kr, kb, Do, $Dr, $Co, Cr, $E, Estar)
+       S     : storage(kd, kn, Cr, Cstore)
     end
 
     model scheme_1c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
        photo : P1            -> P1s             ; gam1 * P1
-       Cred  : P1s + $Co     -> P1o + Cr        ; k1 * P1s
-       Dox   : $Dr + P1o + E -> Do + P1 + Estar ; k2 * P1o * E
-       M     : maintenance(km, E, Estar, Cr);
-       R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
-       S     : storage(kd, kn, C, Cstore)
+       Cred  : P1s + $Co     -> P1o + Cr        ; k1 * P1s * $Co
+       Dox   : $Dr + P1o + E -> Do + P1 + Estar ; k2 * P1o * $Dr * $E
+       M     : maintenance(km, $E, Estar, Cr);
+       R     : respiration(kr, kb, Do, $Dr, $Co, Cr, $E, Estar)
+       S     : storage(kd, kn, Cr, Cstore)
     end
 
     model scheme_2a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
-       photo : P1        -> P1s      ; gam1 * P1
-       Ared  : P1s + Ao  -> P1o + Ar ; k1 * P1s
-       Dox   : $Dr + P1o -> Do + P1  ; k2 * P1o
-       D     : DCR_noE(kcr, kcrb, Ar, Ao, Cr, Co)
-       M     : maintenance(km, E, Estar, Cr);
-       R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
-       S     : storage(kd, kn, C, Cstore)
+       photo : P1         -> P1s      ; gam1 * P1
+       Ared  : P1s + $Ao  -> P1o + Ar ; k1 * P1s * $Ao
+       Dox   : $Dr + P1o  -> Do + P1  ; k2 * P1o * $Dr
+       D     : DCR_noE(kcr, kcrb, Ar, $Ao, Cr, Co)
+       M     : maintenance(km, $E, Estar, Cr);
+       R     : respiration(kr, kb, Do, $Dr, $Co, Cr, $E, Estar)
+       S     : storage(kd, kn, Cr, Cstore)
     end
 
     model scheme_2b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
-       photo : P1           -> P1s              ; gam1 * P1
-       Ared  : P1s + Ao + E -> P1o + Ar + Estar ; k1 * P1s * E
-       Dox   : $Dr + P1o    -> Do + P1          ; k2 * P1o
-       D     : DCR_noE(kcr, kcrb, Ar, Ao, Cr, Co)
-       M     : maintenance(km, E, Estar, Cr);
-       R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
-       S     : storage(kd, kn, C, Cstore)
+       photo : P1             -> P1s              ; gam1 * P1
+       Ared  : P1s + $Ao + $E -> P1o + Ar + Estar ; k1 * P1s * $Ao * $E
+       Dox   : $Dr + P1o      -> Do + P1          ; k2 * P1o * $Dr
+       D     : DCR_noE(kcr, kcrb, Ar, $Ao, Cr, Co)
+       M     : maintenance(km, $E, Estar, Cr);
+       R     : respiration(kr, kb, Do, $Dr, $Co, Cr, $E, Estar)
+       S     : storage(kd, kn, Cr, Cstore)
     end
 
     model scheme_2c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
-       photo : P1            -> P1s             ; gam1 * P1
-       Ared  : P1s + Ao      -> P1o + Ar        ; k1 * P1s
-       Dox   : $Dr + P1o + E -> Do + P1 + Estar ; k2 * P1o * E
+       photo : P1              -> P1s             ; gam1 * P1
+       Ared  : P1s + $Ao       -> P1o + Ar        ; k1 * P1s * $Ao
+       Dox   : $Dr + P1o + $E  -> Do + P1 + Estar ; k2 * P1o * $Dr * $E
        D     : DCR_noE(kcr, kcrb, Ar, Ao, Cr, Co)
-       M     : maintenance(km, E, Estar, Cr);
-       R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
-       S     : storage(kd, kn, C, Cstore)
+       M     : maintenance(km, $E, Estar, Cr);
+       R     : respiration(kr, kb, Do, $Dr, $Co, Cr, $E, Estar)
+       S     : storage(kd, kn, Cr, Cstore)
     end
 
     model scheme_3a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
-       photo : P1        -> P1s      ; gam1 * P1
-       Ared  : P1s + Ao  -> P1o + Ar ; k1 * P1s * Ao
-       Dox   : $Dr + P1o -> Do + P1  ; k2 * P1o
-       D     : DCR_E(kcr, kcrb, Ar, Ao, Cr, Co, E, Estar)
-       M     : maintenance(km, E, Estar, Cr);
-       R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
-       S     : storage(kd, kn, C, Cstore)
+       photo : P1         -> P1s      ; gam1 * P1
+       Ared  : P1s + $Ao  -> P1o + Ar ; k1 * P1s * $Ao
+       Dox   : $Dr + P1o  -> Do + P1  ; k2 * P1o * $Dr
+       D     : DCR_E(kcr, kcrb, Ar, $Ao, Cr, Co, $E, Estar)
+       M     : maintenance(km, $E, Estar, Cr);
+       R     : respiration(kr, kb, Do, $Dr, $Co, Cr, $E, Estar)
+       S     : storage(kd, kn, Cr, Cstore)
     end
 
     model scheme_3b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
-       photo : P1           -> P1s              ; gam1 * P1
-       Ared  : P1s + Ao + E -> P1o + Ar + Estar ; k1 * P1s * Ao
-       Dox   : $Dr + P1o    -> Do + P1          ; k2 * P1o
-       D     : DCR_E(kcr, kcrb, Ar, Ao, Cr, Co, E, Estar)
-       M     : maintenance(km, E, Estar, Cr);
-       R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
-       S     : storage(kd, kn, C, Cstore)
+       photo : P1           -> P1s                ; gam1 * P1
+       Ared  : P1s + $Ao + $E -> P1o + Ar + Estar ; k1 * P1s * $Ao * $E
+       Dox   : $Dr + P1o    -> Do + P1            ; k2 * P1o * $Dr
+       D     : DCR_E(kcr, kcrb, Ar, $Ao, Cr, Co, $E, Estar)
+       M     : maintenance(km, $E, Estar, Cr);
+       R     : respiration(kr, kb, Do, $Dr, $Co, Cr, $E, Estar)
+       S     : storage(kd, kn, Cr, Cstore)
     end
 
     model scheme_3c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
-       photo : P1            -> P1s             ; gam1 * P1
-       Ared  : P1s + Ao      -> P1o + Ar        ; k1 * P1s * Ao
-       Dox   : $Dr + P1o + E -> Do + P1 + Estar ; k2 * P1o
-       D     : DCR_E(kcr, kcrb, Ar, Ao, Cr, Co, E, Estar)
-       M     : maintenance(km, E, Estar, Cr);
-       R     : respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
-       S     : storage(kd, kn, C, Cstore)
+       photo : P1            -> P1s              ; gam1 * P1
+       Ared  : P1s + $Ao      -> P1o + Ar        ; k1 * P1s * $Ao
+       Dox   : $Dr + P1o + $E -> Do + P1 + Estar ; k2 * P1o * $Dr * $E
+       D     : DCR_E(kcr, kcrb, Ar, $Ao, Cr, Co, $E, Estar)
+       M     : maintenance(km, $E, Estar, Cr);
+       R     : respiration(kr, kb, Do, $Dr, $Co, Cr, $E, Estar)
+       S     : storage(kd, kn, Cr, Cstore)
     end
 
     // pull in whichever scheme you want from above and run that model
@@ -408,67 +439,55 @@ def run(scheme, Tstar, params=params):
     df = pd.DataFrame(result, columns=result.colnames)
     df.to_csv(df_file)
 
-    return r, result, df, out_pref
+    return r, result, df, out_pref, output_dir
 
 def simple_plot(result):
     fig, ax = plt.subplots()
-    ax.plot(result['time'], result['[A_Do]'], label='Dox', color='gold')
-    ax.plot(result['time'], result['[A_Ar]'], label='Ared', color='black')
-    ax.plot(result['time'], result['[A_Cr]'], label='Cr', color='firebrick')
-    ax.plot(result['time'], result['[A_Cstore]'], label='Cstore', color='royalblue')
-    ax.plot(result['time'], result['[A_Estar]'], label='E*', color='forestgreen')
+    cols = ['[A_Cr]', '[A_Do]', '[A_Ar]', '[A_Cstore]', '[A_Estar]']
+    for cn, cl in zip(cols, col_legends):
+        ax.plot(result['time'], result[cn], label=cl)
     ax.legend()
     return fig, ax
 
 def loop_over_all():
     for Tstar in light.phz_stars['Tstar']:
-        for scheme in scheme_params.keys():
+        data = np.full((len(scheme_params.keys()), len(columns)),
+                       np.nan, dtype=float)
+        for ii, scheme in enumerate(scheme_params.keys()):
             try:
-                r, result, df, out_pref = run(scheme, Tstar)
+                r, result, df, out_pref, output_dir = run(scheme, Tstar)
             except RuntimeError:
                 print("Runtime error in r.simulate() for scheme {scheme}")
                 continue
+            ss_vals = df.loc[len(df)//2]
+            arr = np.array([ss_vals['[A_Cr]'], ss_vals['[A_Do]'], 
+                       ss_vals['[A_Ar]'], ss_vals['[A_Cstore]'],
+                       ss_vals['[A_Estar]']])
+            data[ii, :] = arr
             fig, ax = simple_plot(result)
             plt.show()
-            plot_file = os.path.join(output_dir, f"{out_pref}_scheme_{scheme}.pdf")
+            plot_file = os.path.join(output_dir,
+                            f"{out_pref}_scheme_{scheme}.pdf")
             fig.savefig(plot_file)
             plt.close()
 
-#loop_over_all()
+        # out_pref is the same for each scheme in the inner loop
+        # so we can just use it here as well
+        output_file = os.path.join(output_dir, f"{out_pref}_steady_state.csv")
+        df = pd.DataFrame(data, columns = columns, index = idx)
+        df.to_csv(output_file)
+        fig, ax = plt.subplots()
+        for cn, cl in zip(columns, col_legends):
+            ax.plot(df.index.to_numpy(), df[cn].to_numpy(),
+                    label=cl, marker='o', ms=5.0)
+        ax.legend()
+        ax.set_xlabel("Scheme")
+        ax.set_ylabel("concentration values")
+        plt.grid(visible=True)
+        plt.show()
+        plot_file = os.path.splitext(output_file)[0] + ".pdf"
+        print(plot_file)
+        fig.savefig(plot_file)
+        plt.close()
 
-columns = ['C_red', 'D_ox', 'A_red', 'C_store', 'Estar']
-col_legends = [r'$ C_{\text{red}} $', r'$ D_{\text{ox}} $',
-               r'$ A_{\text{red}} $', r'$ C_{\text{store}} $',
-               r'$ E_{*} $']
-idx = pd.Index(scheme_params.keys(), name="scheme")
-for Tstar in light.phz_stars['Tstar']:
-    spectrum, out_pref = light.stellar_hz_midpoint(Tstar)
-    data = np.zeros((len(scheme_params.keys()), len(columns)), dtype=float)
-    output_file = os.path.join(output_dir, f"{out_pref}_steady_state.csv")
-    for ii, scheme in enumerate(scheme_params.keys()):
-        filename = os.path.join(output_dir, f"{out_pref}_scheme_{scheme}.csv")
-        try:
-            df = pd.read_csv(filename, index_col=0)
-        except FileNotFoundError:
-            print(f"File {filename} not found. oopsie")
-            continue
-        ss_vals = df.loc[tmax//2]
-        arr = np.array([ss_vals['[A_Cr]'], ss_vals['[A_Do]'], 
-                   ss_vals['[A_Ar]'], ss_vals['[A_Cstore]'],
-                   ss_vals['[A_Estar]']])
-        data[ii, :] = arr
-    df = pd.DataFrame(data, columns = columns, index = idx)
-    df.to_csv(output_file)
-    fig, ax = plt.subplots()
-    for cn, cl in zip(columns, col_legends):
-        ax.plot(df.index.to_numpy(), df[cn].to_numpy(),
-                label=cl, marker='o', ms=5.0)
-    ax.legend()
-    ax.set_xlabel("Scheme")
-    ax.set_ylabel("concentration values")
-    plt.grid(visible=True)
-    plt.show()
-    plot_file = os.path.splitext(output_file)[0] + ".pdf"
-    print(plot_file)
-    fig.savefig(plot_file)
-    plt.close()
+loop_over_all()  
