@@ -7,14 +7,7 @@ The point is to investigate whether oxygenic photosynthesis as it is found on Ea
 
 Pretty simple - install tellurium as described in the docs above and then clone this repo.
 I have just used the version of Spyder that is provided and it works fine so far except for Spyder's lack of vim bindings in the editor.
-There's also a separate GUI `.ipynb` thing that they have set up; I assume if you use that you can just
-```
-import main
-
-scheme = "7b"
-results = main.run(scheme, Tstar)
-```
-in a notebook cell or something like that, but I haven't checked.
+They also provide a notebook-style frontend; I haven't used that but have included a simple `example.ipynb` which works fine in standard Jupyter.
 
 ## Comments
 
@@ -33,5 +26,4 @@ Finally there's a section that sets all the variables and initialises the concen
 
 ## TO DO
 
-- [ ] Check notebook setup and provide an example .ipynb for use in the tellurium viewer or jupyter or wherever
 - [ ] Settle on where the `run()` wrapper abstraction should end - should it include the plots? Do the plots and return the filenames? What's the intended workflow here
