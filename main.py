@@ -144,8 +144,8 @@ scheme_params = { # reddest usable wavelength of light
 
 params = {
     "light"         : "switch",
-    "intensity"     : "low",
-    "maintenance_C" : True,
+    "intensity"     : "high",
+    "maintenance_C" : False,
     "k_resp"        : 1,
     "k_resp_back"   : 1,
     "k1"            : 1,
@@ -158,9 +158,6 @@ params = {
     "k_cr"          : 1,
     "k_cr_back"     : 1,
 }
-
-
-
 
 # for plotting steady state values
 columns = ['C_red', 'D_ox', 'A_red', 'C_store', 'Estar']
@@ -209,13 +206,19 @@ def run(scheme, Tstar, params=params):
                 f"maintenance_Cred_{params['maintenance_C']}",
                 f"{params['intensity']}_intensity")
     os.makedirs(output_dir, exist_ok=True)
+    
+    fig, ax = plt.subplots()
+    ax.plot(spectrum[:, 0], spectrum[:, 1])
+    ax.set_title(f"T = {Tstar}")
+    plt.grid(visible=True)
+    fig.savefig(os.path.join(output_dir, f"{out_pref}_spectrum.pdf"))
+    plt.close()
+    np.savetxt(os.path.join(output_dir, f"{out_pref}_spectrum.csv"), spectrum)
 
     exc_rate = np.zeros(len(sc_p['deltaG_gamma']), dtype=float)
     for i, dgg in enumerate(sc_p['deltaG_gamma']):
         uf = light.micromole_in_region(spectrum, xlim[0], ev_nm(dgg))
         exc_rate[i] = uf/total_flux
-        
-    print(f"Excitation rate(s): {exc_rate}")
     
     if params["maintenance_C"]:
         maint_str = " * Cr"
@@ -230,7 +233,8 @@ def run(scheme, Tstar, params=params):
         exc_rate *= 0.1
     else:
         raise ValueError(f"params['intensity'] value = {params['intensity']} not recognised. Should be low, medium or high")
-
+    
+    print(f"Total flux = {total_flux} muE. exc_rate = {exc_rate}")
     if params["light"] == "periodic":
         gamma_string = [f"square_wave(time, {period}, {er})" for er in exc_rate]
     elif params["light"] == "switch":
@@ -263,11 +267,9 @@ def run(scheme, Tstar, params=params):
     * initialisations, and ensures that the species in the submodels always
     * correspond to the ones in the main schemes) */
 
-    // currently unused
-    model storage(kd, kn, Cr, Cstore)
-       species Cr, Cstore
-       fw : Cr     -> Cstore ; kd * Cr
-       // bw : Cstore -> Cr     ; kn * Cstore
+    model respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
+        fw: Do + Cr + {sc_p["resp_stoi"]} $E -> $Dr + $Co + {sc_p["resp_stoi"]} Estar; kr*Do*Cr*($E^{sc_p["resp_stoi"]});
+        bw: $Dr + $Co + {sc_p["resp_stoi"]} Estar -> Do + Cr + {sc_p["resp_stoi"]} $E; kb*(Estar^{sc_p["resp_stoi"]});
     end
 
     model maintenance(km, E, Estar, Cr)
@@ -275,6 +277,19 @@ def run(scheme, Tstar, params=params):
         Estar -> $E; km * Estar {maint_str}
     end
 
+    model storage(kd, kn, Cr, Cstore)
+        species Cr, Cstore
+        fw : Cr     -> Cstore ; kd * Cr
+        // bw : Cstore -> Cr     ; kn * Cstore
+    end
+
+    model bg(kr, kb, km, kd, kn, Do, Dr, Co, Cr, E, Estar, Cstore)
+        species Do, Dr, Co, Cr, E, Estar, Cstore
+        M     : maintenance(km, $E, Estar, Cr);
+        R     : respiration(kr, kb, Do, $Dr, $Co, Cr, $E, Estar)
+        S     : storage(kd, kn, Cr, Cstore)
+    end
+    
     // reversible dark carbon reduction with no energy production
     model DCR_noE(kcr, kcrb, Ar, Ao, Cr, Co)
         species Ar, Ao, Cr, Co
@@ -291,11 +306,6 @@ def run(scheme, Tstar, params=params):
         // bw: $Ao + Cr + {sc_p["dcr_stoi"]} $E -> Ar + $Co + {sc_p["dcr_stoi"]} Estar; kcrb * $Ao * Cr * ($E^{sc_p["dcr_stoi"]})
     end
 
-    model respiration(kr, kb, Do, Dr, Co, Cr, E, Estar)
-       fw: Do + Cr + {sc_p["resp_stoi"]} $E -> $Dr + $Co + {sc_p["resp_stoi"]} Estar; kr*Do*Cr*($E^{sc_p["resp_stoi"]});
-       bw: $Dr + $Co + {sc_p["resp_stoi"]} Estar -> Do + Cr + {sc_p["resp_stoi"]} $E; kb*(Estar^{sc_p["resp_stoi"]});
-    end
-    
     /* NB: every model must have a name of the form `scheme_SCHEMELABEL`,
     * have all of the rates that are specified at the bottom as arguments,
     * in the right order, and include the species definitions as below.
@@ -313,9 +323,7 @@ def run(scheme, Tstar, params=params):
        photo : P1        -> P1s      ; gam1 * P1
        Cred  : P1s + $Co -> P1o + Cr ; k1 * P1s * $Co
        Dox   : $Dr + P1o -> Do + P1  ; k2 * P1o * $Dr
-       M     : maintenance(km, $E, Estar, Cr);
-       R     : respiration(kr, kb, Do, $Dr, $Co, Cr, $E, Estar)
-       S     : storage(kd, kn, Cr, Cstore)
+       B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
     end
 
     model scheme_1b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -323,9 +331,7 @@ def run(scheme, Tstar, params=params):
        photo : P1            -> P1s              ; gam1 * P1
        Cred  : P1s + $Co + E -> P1o + Cr + Estar ; k1 * P1s * $Co * $E
        Dox   : $Dr + P1o     -> Do + P1          ; k2 * P1o * $Dr
-       M     : maintenance(km, $E, Estar, Cr);
-       R     : respiration(kr, kb, Do, $Dr, $Co, Cr, $E, Estar)
-       S     : storage(kd, kn, Cr, Cstore)
+       B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
     end
 
     model scheme_1c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -333,9 +339,7 @@ def run(scheme, Tstar, params=params):
        photo : P1            -> P1s             ; gam1 * P1
        Cred  : P1s + $Co     -> P1o + Cr        ; k1 * P1s * $Co
        Dox   : $Dr + P1o + E -> Do + P1 + Estar ; k2 * P1o * $Dr * $E
-       M     : maintenance(km, $E, Estar, Cr);
-       R     : respiration(kr, kb, Do, $Dr, $Co, Cr, $E, Estar)
-       S     : storage(kd, kn, Cr, Cstore)
+       B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
     end
 
     model scheme_2a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -344,9 +348,7 @@ def run(scheme, Tstar, params=params):
        Ared  : P1s + $Ao  -> P1o + Ar ; k1 * P1s * $Ao
        Dox   : $Dr + P1o  -> Do + P1  ; k2 * P1o * $Dr
        D     : DCR_noE(kcr, kcrb, Ar, $Ao, Cr, Co)
-       M     : maintenance(km, $E, Estar, Cr);
-       R     : respiration(kr, kb, Do, $Dr, $Co, Cr, $E, Estar)
-       S     : storage(kd, kn, Cr, Cstore)
+       B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
     end
 
     model scheme_2b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -355,9 +357,7 @@ def run(scheme, Tstar, params=params):
        Ared  : P1s + $Ao + $E -> P1o + Ar + Estar ; k1 * P1s * $Ao * $E
        Dox   : $Dr + P1o      -> Do + P1          ; k2 * P1o * $Dr
        D     : DCR_noE(kcr, kcrb, Ar, $Ao, Cr, Co)
-       M     : maintenance(km, $E, Estar, Cr);
-       R     : respiration(kr, kb, Do, $Dr, $Co, Cr, $E, Estar)
-       S     : storage(kd, kn, Cr, Cstore)
+       B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
     end
 
     model scheme_2c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -366,9 +366,7 @@ def run(scheme, Tstar, params=params):
        Ared  : P1s + $Ao       -> P1o + Ar        ; k1 * P1s * $Ao
        Dox   : $Dr + P1o + $E  -> Do + P1 + Estar ; k2 * P1o * $Dr * $E
        D     : DCR_noE(kcr, kcrb, Ar, Ao, Cr, Co)
-       M     : maintenance(km, $E, Estar, Cr);
-       R     : respiration(kr, kb, Do, $Dr, $Co, Cr, $E, Estar)
-       S     : storage(kd, kn, Cr, Cstore)
+       B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
     end
 
     model scheme_3a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -377,9 +375,7 @@ def run(scheme, Tstar, params=params):
        Ared  : P1s + $Ao  -> P1o + Ar ; k1 * P1s * $Ao
        Dox   : $Dr + P1o  -> Do + P1  ; k2 * P1o * $Dr
        D     : DCR_E(kcr, kcrb, Ar, $Ao, Cr, Co, $E, Estar)
-       M     : maintenance(km, $E, Estar, Cr);
-       R     : respiration(kr, kb, Do, $Dr, $Co, Cr, $E, Estar)
-       S     : storage(kd, kn, Cr, Cstore)
+       B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
     end
 
     model scheme_3b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -388,9 +384,7 @@ def run(scheme, Tstar, params=params):
        Ared  : P1s + $Ao + $E -> P1o + Ar + Estar ; k1 * P1s * $Ao * $E
        Dox   : $Dr + P1o    -> Do + P1            ; k2 * P1o * $Dr
        D     : DCR_E(kcr, kcrb, Ar, $Ao, Cr, Co, $E, Estar)
-       M     : maintenance(km, $E, Estar, Cr);
-       R     : respiration(kr, kb, Do, $Dr, $Co, Cr, $E, Estar)
-       S     : storage(kd, kn, Cr, Cstore)
+       B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
     end
 
     model scheme_3c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -399,9 +393,7 @@ def run(scheme, Tstar, params=params):
        Ared  : P1s + $Ao      -> P1o + Ar        ; k1 * P1s * $Ao
        Dox   : $Dr + P1o + $E -> Do + P1 + Estar ; k2 * P1o * $Dr * $E
        D     : DCR_E(kcr, kcrb, Ar, $Ao, Cr, Co, $E, Estar)
-       M     : maintenance(km, $E, Estar, Cr);
-       R     : respiration(kr, kb, Do, $Dr, $Co, Cr, $E, Estar)
-       S     : storage(kd, kn, Cr, Cstore)
+       B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
     end
 
     // pull in whichever scheme you want from above and run that model

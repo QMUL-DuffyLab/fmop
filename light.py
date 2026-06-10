@@ -183,7 +183,7 @@ def stellar(**kwargs):
         raise
     output_prefix = f"stellar_{T:4d}K_a_{a:6.4f}AU"
     a *= AU # convert to metres
-    lambdas = np.linspace(xlim, nx)
+    lambdas = np.linspace(xlim[0], xlim[1], nx)
     # spectral irradiance (W m^{-2} nm^{-1})
     lambdas *= 1e-9 # convert to SI
     sp = 1.0E-9 * np.pi * ((2.0 * h * c**2 / lambdas**5.0)
