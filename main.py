@@ -164,16 +164,20 @@ columns = ['C_red', 'D_ox', 'A_red', 'C_store', 'Estar']
 col_legends = [r'$ C_{\text{red}} $', r'$ D_{\text{ox}} $',
                r'$ A_{\text{red}} $', r'$ C_{\text{store}} $',
                r'$ E_{*} $']
-idx = pd.Index(scheme_params.keys(), name="scheme")
+idx_s = pd.Index(scheme_params.keys(), name="scheme")
+idx_t = pd.Index(light.phz_stars['Tstar'], name="Tstar")
 
 def run(scheme, Tstar, params=params):
     '''
     wrapper to set up all the antimony models, pick the one
     you want with the parameters you want, simulate, plot
     the results and output relevant data.
-    having one massive f-string is ugly, i know. but because of the
-    multiple schemes, the parameters that need to be set at runtime
-    and some of the ways that antimony works, this is currently the
+    having one massive f-string is ugly, i know. the reason we can't
+    just save it all to one txt file and pull the relevant schemes
+    at runtime is the stoichiometries for Estar (see models
+    respiration and DCR_E) - these must be integers or antimony
+    will break, but they might differ depending on scheme, so we need
+    to insert them here. This is really annoying but currently it's
     most flexible usage situation i can come up with.
     
     arguments
@@ -423,6 +427,9 @@ def run(scheme, Tstar, params=params):
         A.Estar = 0; A.E = 1;
     end
     """)
+    r_file = os.path.join(output_dir,
+                          f"{out_pref}_scheme_{scheme}_antimony.txt")
+    r.exportToAntimony(r_file)
     result = r.simulate(0, cycles*period, cycles*period + 1)
     df_file = os.path.join(output_dir, f"{out_pref}_scheme_{scheme}.csv")
     # results is a roadrunner.NamedArray not a structured numpy array
@@ -441,46 +448,90 @@ def simple_plot(result):
     ax.legend()
     return fig, ax
 
-def loop_over_all():
-    for Tstar in light.phz_stars['Tstar']:
-        data = np.full((len(scheme_params.keys()), len(columns)),
-                       np.nan, dtype=float)
-        for ii, scheme in enumerate(scheme_params.keys()):
-            try:
-                r, result, df, out_pref, output_dir = run(scheme, Tstar)
-            except RuntimeError:
-                print("Runtime error in r.simulate() for scheme {scheme}")
-                continue
-            ss_vals = df.loc[len(df)//2]
-            arr = np.array([ss_vals['[A_Cr]'], ss_vals['[A_Do]'], 
-                       ss_vals['[A_Ar]'], ss_vals['[A_Cstore]'],
-                       ss_vals['[A_Estar]']])
-            data[ii, :] = arr
-            fig, ax = simple_plot(result)
-            plt.show()
-            plot_file = os.path.join(output_dir,
-                            f"{out_pref}_scheme_{scheme}.pdf")
-            fig.savefig(plot_file)
-            plt.close()
+def df_plot(df, output_file):
+    '''
+    plot the relevant columns as defined above from dataframe df
+    '''
+    fig, ax = plt.subplots()
+    for cn, cl in zip(columns, col_legends):
+        ax.plot(df.index.to_numpy(), df[cn].to_numpy(),
+                label=cl, marker='o', ms=5.0)
+    ax.legend()
+    ax.set_xlabel(df.index.name)
+    ax.set_ylabel("concentration")
+    plt.grid(visible=True)
+    plt.show()
+    plot_file = os.path.splitext(output_file)[0] + ".pdf"
+    fig.savefig(plot_file)
+    plt.close()
 
-        # out_pref is the same for each scheme in the inner loop
-        # so we can just use it here as well
-        output_file = os.path.join(output_dir, f"{out_pref}_steady_state.csv")
-        df = pd.DataFrame(data, columns = columns, index = idx)
-        df.to_csv(output_file)
-        fig, ax = plt.subplots()
-        for cn, cl in zip(columns, col_legends):
-            ax.plot(df.index.to_numpy(), df[cn].to_numpy(),
-                    label=cl, marker='o', ms=5.0)
-        ax.legend()
-        ax.set_xlabel("Scheme")
-        ax.set_ylabel("concentration values")
-        plt.grid(visible=True)
+def loop_over_schemes(Tstar, params=params):
+    '''
+    for a given Tstar, loop over all schemes and run the simulations,
+    returning a dataframe of the steady state results
+    '''
+    data = np.full((len(scheme_params.keys()), len(columns)),
+                   np.nan, dtype=float)
+    for ii, scheme in enumerate(scheme_params.keys()):
+        try:
+            r, result, df, out_pref, output_dir = run(scheme, Tstar)
+        except RuntimeError:
+            print("Runtime error in r.simulate() for scheme {scheme}")
+            continue
+        ss_vals = df.loc[len(df)//2]
+        arr = np.array([ss_vals['[A_Cr]'], ss_vals['[A_Do]'], 
+                   ss_vals['[A_Ar]'], ss_vals['[A_Cstore]'],
+                   ss_vals['[A_Estar]']])
+        data[ii, :] = arr
+        fig, ax = simple_plot(result)
         plt.show()
-        plot_file = os.path.splitext(output_file)[0] + ".pdf"
-        print(plot_file)
+        plot_file = os.path.join(output_dir,
+                        f"{out_pref}_scheme_{scheme}.pdf")
         fig.savefig(plot_file)
         plt.close()
+
+    # out_pref is the same for each scheme in the inner loop
+    # so we can just use it here as well
+    output_file = os.path.join(output_dir, f"{out_pref}_steady_state.csv")
+    df = pd.DataFrame(data, columns = columns, index = idx_s)
+    df.to_csv(output_file)
+    df_plot(df, output_file)
+
+def loop_over_stars(scheme, params=params):
+    '''
+    for a given scheme, loop over all stars and run the simulations,
+    returning a dataframe of the steady state results
+    '''
+    data = np.full((len(light.phz_stars), len(columns)),
+                   np.nan, dtype=float)
+    for ii, Tstar in enumerate(light.phz_stars['Tstar']):
+        try:
+            r, result, df, out_pref, output_dir = run(scheme, Tstar)
+        except RuntimeError:
+            print("Runtime error in r.simulate() for scheme {scheme}")
+            continue
+        ss_vals = df.loc[len(df)//2]
+        arr = np.array([ss_vals['[A_Cr]'], ss_vals['[A_Do]'], 
+                   ss_vals['[A_Ar]'], ss_vals['[A_Cstore]'],
+                   ss_vals['[A_Estar]']])
+        data[ii, :] = arr
+        fig, ax = simple_plot(result)
+        plt.show()
+        plot_file = os.path.join(output_dir,
+                        f"{out_pref}_scheme_{scheme}.pdf")
+        fig.savefig(plot_file)
+        plt.close()
+
+    # out_pref is the same for each scheme in the inner loop
+    # so we can just use it here as well
+    output_file = os.path.join(output_dir, f"scheme_{scheme}_steady_state.csv")
+    df = pd.DataFrame(data, columns = columns, index = idx_t)
+    df.to_csv(output_file)
+    df_plot(df, output_file)
+
+def loop_over_all():
+    for Tstar in light.phz_stars['Tstar']:
+        loop_over_schemes(Tstar, params)
 
 if __name__ == "__main__":
     loop_over_all()  

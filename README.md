@@ -26,4 +26,6 @@ Finally there's a section that sets all the variables and initialises the concen
 
 ## TO DO
 
+- [ ] set up loop functions to return dataframes and make a multi-index one for loop_over_all
+- [ ] change light switching, intensity and Cr dependence to function arguments rather than dict keys
 - [ ] Settle on where the `run()` wrapper abstraction should end - should it include the plots? Do the plots and return the filenames? What's the intended workflow here
