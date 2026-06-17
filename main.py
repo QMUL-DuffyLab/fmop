@@ -166,6 +166,9 @@ col_legends = [r'$ C_{\text{red}} $', r'$ D_{\text{ox}} $',
                r'$ E_{*} $']
 idx_s = pd.Index(scheme_params.keys(), name="scheme")
 idx_t = pd.Index(light.phz_stars['Tstar'], name="Tstar")
+idx_ts = pd.MultiIndex.from_product([idx_t, idx_s])
+cols_to_plot = ['C_red', 'Estar']
+labels = [r'$ C_{\text{red}} $', r'$ E^{*} $']
 
 def make_outdir(basedir, params): 
     output_dir = os.path.join(basedir,
@@ -539,10 +542,25 @@ def loop_over_all():
     aa = {}
     for Tstar in light.phz_stars['Tstar']:
         aa[Tstar] = loop_over_schemes(Tstar, params)
-    df = pd.concat(aa)
+    df = pd.concat(aa, names=['Tstar', 'scheme'])
+    df.set_index(idx_ts)
     output_dir = make_outdir(base_dir, params)
     output_file = os.path.join(output_dir, "all_steady_state.csv")
     df.to_csv(output_file)
+    # plot - this is ugly but whatever
+    fig, axes = plt.subplots(ncols=len(cols_to_plot),
+                             figsize=((10*len(cols_to_plot), 8)))
+    for ii, (qq, ll) in enumerate(zip(cols_to_plot, labels)):
+        sdf = df[qq]
+        for Tstar, new_df in sdf.groupby(level=0):
+            ndf = new_df.droplevel(0)
+            axes[ii].plot(ndf.index.to_numpy(), ndf.values, label=f"T = {Tstar}K", marker='o')
+        axes[ii].set_title(ll)
+        axes[ii].legend()
+        axes[ii].set_xlabel("scheme")
+        axes[0].set_ylabel("value at light off")
+    fig.savefig(os.path.splitext(output_file)[0] + ".pdf")
+    plt.close()
     return df
 
 if __name__ == "__main__":
