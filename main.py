@@ -167,6 +167,13 @@ col_legends = [r'$ C_{\text{red}} $', r'$ D_{\text{ox}} $',
 idx_s = pd.Index(scheme_params.keys(), name="scheme")
 idx_t = pd.Index(light.phz_stars['Tstar'], name="Tstar")
 
+def make_outdir(basedir, params): 
+    output_dir = os.path.join(basedir,
+                f"maintenance_Cred_{params['maintenance_C']}",
+                f"{params['intensity']}_intensity")
+    os.makedirs(output_dir, exist_ok=True)
+    return output_dir
+
 def run(scheme, Tstar, params=params):
     '''
     wrapper to set up all the antimony models, pick the one
@@ -205,11 +212,8 @@ def run(scheme, Tstar, params=params):
     total_flux = light.micromole_in_region(spectrum, xlim[0], ev_nm(dg_p))
     sc_p = scheme_params[scheme]
     scheme_to_call = sc_p["scheme_to_call"]
-    
-    output_dir = os.path.join(base_dir,
-                f"maintenance_Cred_{params['maintenance_C']}",
-                f"{params['intensity']}_intensity")
-    os.makedirs(output_dir, exist_ok=True)
+
+    output_dir = make_outdir(base_dir, params)
     
     fig, ax = plt.subplots()
     ax.plot(spectrum[:, 0], spectrum[:, 1])
@@ -496,6 +500,7 @@ def loop_over_schemes(Tstar, params=params):
     df = pd.DataFrame(data, columns = columns, index = idx_s)
     df.to_csv(output_file)
     df_plot(df, output_file)
+    return df
 
 def loop_over_stars(scheme, params=params):
     '''
@@ -528,10 +533,17 @@ def loop_over_stars(scheme, params=params):
     df = pd.DataFrame(data, columns = columns, index = idx_t)
     df.to_csv(output_file)
     df_plot(df, output_file)
+    return df
 
 def loop_over_all():
+    aa = {}
     for Tstar in light.phz_stars['Tstar']:
-        loop_over_schemes(Tstar, params)
+        aa[Tstar] = loop_over_schemes(Tstar, params)
+    df = pd.concat(aa)
+    output_dir = make_outdir(base_dir, params)
+    output_file = os.path.join(output_dir, "all_steady_state.csv")
+    df.to_csv(output_file)
+    return df
 
 if __name__ == "__main__":
-    loop_over_all()  
+    df = loop_over_all()  
