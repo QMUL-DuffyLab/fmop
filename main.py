@@ -140,11 +140,35 @@ scheme_params = { # reddest usable wavelength of light
         'resp_stoi': 5,
         'dcr_stoi': 4,
         },
+    "4d"  : { 
+        'scheme_to_call': "4d",
+        'deltaG_gamma': [ev_nm(954.0), np.nan],
+        'resp_stoi': 5,
+        'dcr_stoi': 4,
+        },
+    "4e"  : { 
+        'scheme_to_call': "4e",
+        'deltaG_gamma': [ev_nm(954.0), np.nan],
+        'resp_stoi': 5,
+        'dcr_stoi': 4,
+        },
+    "5a"  : { 
+        'scheme_to_call': "5a",
+        'deltaG_gamma': [ev_nm(1192.0), np.nan],
+        'resp_stoi': 5,
+        'dcr_stoi': 0,
+        },
+    "5b"  : { 
+        'scheme_to_call': "5b",
+        'deltaG_gamma': [ev_nm(1192.0), np.nan],
+        'resp_stoi': 5,
+        'dcr_stoi': 0,
+        },
     }
 
 params = {
     "light"         : "switch",
-    "intensity"     : "high",
+    "intensity"     : "medium",
     "maintenance_C" : False,
     "k_resp"        : 1,
     "k_resp_back"   : 1,
@@ -406,7 +430,43 @@ def run(scheme, Tstar, params=params):
        D     : DCR_E(kcr, kcrb, Ar, $Ao, Cr, Co, $E, Estar)
        B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
     end
-
+    
+    model scheme_4d(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
+       photo : P1             -> P1s              ; gam1 * P1
+       Ared  : P1s + $Ao      -> P1o + Ar        ; k1 * P1s * $Ao
+       Dox   : $Dr + P1o      -> Do + P1         ; k2 * P1o * $Dr
+       Aox   : Ar + Do        -> $Ao + $Dr       ; k3 * Ar * Do
+       D     : DCR_E(kcr, kcrb, Ar, $Ao, Cr, Co, $E, Estar)
+       B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
+    end
+    
+    model scheme_4e(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
+       photo : P1            -> P1s              ; gam1 * P1
+       Ared  : P1s + $Ao      -> P1o + Ar        ; k1 * P1s * $Ao
+       Dox   : $Dr + P1o + $E -> Do + P1 + Estar ; k2 * P1o * $Dr * $E
+       Aox   : Ar + Do        -> $Ao + $Dr       ; k3 * Ar * Do
+       D     : DCR_E(kcr, kcrb, Ar, $Ao, Cr, Co, $E, Estar)
+       B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
+    end
+    
+    model scheme_5a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
+        photo : P1             -> P1s              ; gam1 * P1
+        Ared  : P1s + $Ao + $E -> P1o + Ar + Estar ; k1 * P1s * $Ao * $E
+        Aox   : Ar + P1o       -> Ao + P           ; k2 * Ar * P1o
+        B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
+    end
+    
+    model scheme_5b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
+        photo : P1             -> P1s              ; gam1 * P1
+        Ared  : P1s + $Ao      -> P1o + Ar         ; k1 * P1s * $Ao
+        Aox   : Ar + P1o + $E  -> Ao + P + Estar   ; k2 * Ar * P1o * $E
+        B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
+    end
+    
     // pull in whichever scheme you want from above and run that model
     model sim()
         // Variable initialization:
@@ -449,8 +509,8 @@ def run(scheme, Tstar, params=params):
 
 def simple_plot(result):
     fig, ax = plt.subplots()
-    cols = ['[A_Cr]', '[A_Do]', '[A_Ar]', '[A_Cstore]', '[A_Estar]']
-    for cn, cl in zip(cols, col_legends):
+    cols = ['[A_Cr]', '[A_Estar]']
+    for cn, cl in zip(cols, labels):
         ax.plot(result['time'], result[cn], label=cl)
     ax.legend()
     return fig, ax
@@ -491,6 +551,7 @@ def loop_over_schemes(Tstar, params=params):
                    ss_vals['[A_Estar]']])
         data[ii, :] = arr
         fig, ax = simple_plot(result)
+        ax.set_title(f"Scheme {scheme}")
         plt.show()
         plot_file = os.path.join(output_dir,
                         f"{out_pref}_scheme_{scheme}.pdf")
@@ -560,8 +621,9 @@ def loop_over_all():
         axes[ii].set_xlabel("scheme")
         axes[0].set_ylabel("value at light off")
     fig.savefig(os.path.splitext(output_file)[0] + ".pdf")
+    plt.show()
     plt.close()
     return df
 
 if __name__ == "__main__":
-    df = loop_over_all()  
+    df = loop_over_all()
