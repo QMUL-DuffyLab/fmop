@@ -27,29 +27,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.constants import h, c, e, Boltzmann
 import light
-
-base_dir = "out"
-Temperature = 300
-hcnm = (h * c) / (1.0E-9)
-beta_cm = 1.0 / (Boltzmann * Temperature * (1. / (100.0 * c))) # in wavenumbers
-beta_ev = 1.0 / (Boltzmann * Temperature / e) # in eV
-ten_kbt = 0.26
-
-xlim = [400.0, 2000.0]
-nx = int(xlim[1] - xlim[0])
+import utils
 
 tmax = 10000
 cycles = 10 # only relevant if day/night cycle is turned on
 period = tmax // cycles
 
-@np.vectorize
-def ev_nm(x):
-    ''' convert eV to nm and vice-versa '''
-    return (hcnm / e) * (1.0 / x)
-
-dg_h2o = -5.10 # in eV
-dg_co2 = -3.85 # in eV
-dg_p = dg_co2 - dg_h2o
+dg_p = utils.dg_co2 - utils.dg_h2o
 
 '''
 various scheme-dependent parameters.
@@ -70,97 +54,97 @@ must have two members
 scheme_params = { # reddest usable wavelength of light
     "1a" : { 
         'scheme_to_call': "1a",
-        'deltaG_gamma': [ev_nm(611.0), np.nan],
+        'deltaG_gamma': [utils.ev_nm(611.0), np.nan],
         'resp_stoi': 5,
         'dcr_stoi': 0, # not used for scheme 1
         },
     "1b" : { 
         'scheme_to_call': "1b",
-        'deltaG_gamma': [ev_nm(541.0), np.nan],
+        'deltaG_gamma': [utils.ev_nm(541.0), np.nan],
         'resp_stoi': 5,
         'dcr_stoi': 0,
         },
     "1c" : { 
         'scheme_to_call': "1c",
-        'deltaG_gamma': [ev_nm(541.0), np.nan],
+        'deltaG_gamma': [utils.ev_nm(541.0), np.nan],
         'resp_stoi': 5,
         'dcr_stoi': 0,
         },
     "2a" : { 
         'scheme_to_call': "2a",
-        'deltaG_gamma': [ev_nm(611.0), np.nan],
+        'deltaG_gamma': [utils.ev_nm(611.0), np.nan],
         'resp_stoi': 5,
         'dcr_stoi': 1,
         },
     "2b" : { 
         'scheme_to_call': "2b",
-        'deltaG_gamma': [ev_nm(541.0), np.nan],
+        'deltaG_gamma': [utils.ev_nm(541.0), np.nan],
         'resp_stoi': 5,
         'dcr_stoi': 1,
         },
     "2c" : { 
         'scheme_to_call': "2c",
-        'deltaG_gamma': [ev_nm(541.0), np.nan],
+        'deltaG_gamma': [utils.ev_nm(541.0), np.nan],
         'resp_stoi': 5,
         'dcr_stoi': 1,
         },
     "3a" : { 
         'scheme_to_call': "3a",
-        'deltaG_gamma': [ev_nm(700.0), np.nan],
+        'deltaG_gamma': [utils.ev_nm(700.0), np.nan],
         'resp_stoi': 5,
         'dcr_stoi': 1,
         },
     "3b" : { 
         'scheme_to_call': "3b",
-        'deltaG_gamma': [ev_nm(611.0), np.nan],
+        'deltaG_gamma': [utils.ev_nm(611.0), np.nan],
         'resp_stoi': 5,
         'dcr_stoi': 1,
         },
     "3c" : { 
         'scheme_to_call': "3c",
-        'deltaG_gamma': [ev_nm(611.0), np.nan],
+        'deltaG_gamma': [utils.ev_nm(611.0), np.nan],
         'resp_stoi': 5,
         'dcr_stoi': 1,
         },
     "4a"  : { 
         'scheme_to_call': "3a",
-        'deltaG_gamma': [ev_nm(1192.0), np.nan],
+        'deltaG_gamma': [utils.ev_nm(1192.0), np.nan],
         'resp_stoi': 5,
         'dcr_stoi': 4,
         },
     "4b"  : { 
         'scheme_to_call': "3b",
-        'deltaG_gamma': [ev_nm(954.0), np.nan],
+        'deltaG_gamma': [utils.ev_nm(954.0), np.nan],
         'resp_stoi': 5,
         'dcr_stoi': 4,
         },
     "4c"  : { 
         'scheme_to_call': "3c",
-        'deltaG_gamma': [ev_nm(954.0), np.nan],
+        'deltaG_gamma': [utils.ev_nm(954.0), np.nan],
         'resp_stoi': 5,
         'dcr_stoi': 4,
         },
     "4d"  : { 
         'scheme_to_call': "4d",
-        'deltaG_gamma': [ev_nm(954.0), np.nan],
+        'deltaG_gamma': [utils.ev_nm(954.0), np.nan],
         'resp_stoi': 5,
         'dcr_stoi': 4,
         },
     "4e"  : { 
         'scheme_to_call': "4e",
-        'deltaG_gamma': [ev_nm(954.0), np.nan],
+        'deltaG_gamma': [utils.ev_nm(954.0), np.nan],
         'resp_stoi': 5,
         'dcr_stoi': 4,
         },
     "5a"  : { 
         'scheme_to_call': "5a",
-        'deltaG_gamma': [ev_nm(1192.0), np.nan],
+        'deltaG_gamma': [utils.ev_nm(1192.0), np.nan],
         'resp_stoi': 5,
         'dcr_stoi': 0,
         },
     "5b"  : { 
         'scheme_to_call': "5b",
-        'deltaG_gamma': [ev_nm(1192.0), np.nan],
+        'deltaG_gamma': [utils.ev_nm(1192.0), np.nan],
         'resp_stoi': 5,
         'dcr_stoi': 0,
         },
@@ -236,11 +220,12 @@ def run(scheme, Tstar, params=params):
         raise ValueError(f"Incorrect stellar temperature provided to run(). Tstar = {Tstar}, allowed values are {light.phz_stars['Tstar']}")
     print(f"Ts = {Tstar}, Scheme {scheme}")
     spectrum, out_pref = light.stellar_hz_midpoint(Tstar)
-    total_flux = light.micromole_in_region(spectrum, xlim[0], ev_nm(dg_p))
+    total_flux = light.micromole_in_region(spectrum,
+            utils.xlim[0], utils.ev_nm(dg_p))
     sc_p = scheme_params[scheme]
     scheme_to_call = sc_p["scheme_to_call"]
 
-    output_dir = make_outdir(base_dir, params)
+    output_dir = make_outdir(utils.base_dir, params)
     
     fig, ax = plt.subplots()
     ax.plot(spectrum[:, 0], spectrum[:, 1])
@@ -252,7 +237,8 @@ def run(scheme, Tstar, params=params):
 
     exc_rate = np.zeros(len(sc_p['deltaG_gamma']), dtype=float)
     for i, dgg in enumerate(sc_p['deltaG_gamma']):
-        uf = light.micromole_in_region(spectrum, xlim[0], ev_nm(dgg))
+        uf = light.micromole_in_region(spectrum, 
+                utils.xlim[0], utils.ev_nm(dgg))
         exc_rate[i] = uf/total_flux
     
     if params["maintenance_C"]:
@@ -605,7 +591,7 @@ def loop_over_all():
         aa[Tstar] = loop_over_schemes(Tstar, params)
     df = pd.concat(aa, names=['Tstar', 'scheme'])
     df.set_index(idx_ts)
-    output_dir = make_outdir(base_dir, params)
+    output_dir = make_outdir(utils.base_dir, params)
     output_file = os.path.join(output_dir, "all_steady_state.csv")
     df.to_csv(output_file)
     # plot - this is ugly but whatever
