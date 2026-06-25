@@ -304,7 +304,7 @@ def run(scheme, Tstar, params=params):
         // bw : Cstore -> Cr     ; kn * Cstore
     end
 
-    model bg(kr, kb, km, kd, kn, Do, Dr, Co, Cr, E, Estar, Cstore)
+    model bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore)
         species Do, Dr, Co, Cr, E, Estar, Cstore
         M     : maintenance(km, $E, Estar, Cr);
         R     : respiration(kr, kb, Do, $Dr, $Co, Cr, $E, Estar)
@@ -344,7 +344,7 @@ def run(scheme, Tstar, params=params):
        photo : P1        -> P1s      ; gam1 * P1
        Cred  : P1s + $Co -> P1o + Cr ; k1 * P1s * $Co
        Dox   : $Dr + P1o -> Do + P1  ; k2 * P1o * $Dr
-       B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
+       B     : bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
     end
 
     model scheme_1b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -352,7 +352,7 @@ def run(scheme, Tstar, params=params):
        photo : P1            -> P1s              ; gam1 * P1
        Cred  : P1s + $Co + E -> P1o + Cr + Estar ; k1 * P1s * $Co * $E
        Dox   : $Dr + P1o     -> Do + P1          ; k2 * P1o * $Dr
-       B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
+       B     : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
     end
 
     model scheme_1c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -360,7 +360,7 @@ def run(scheme, Tstar, params=params):
        photo : P1            -> P1s             ; gam1 * P1
        Cred  : P1s + $Co     -> P1o + Cr        ; k1 * P1s * $Co
        Dox   : $Dr + P1o + E -> Do + P1 + Estar ; k2 * P1o * $Dr * $E
-       B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
+       B     : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
     end
 
     model scheme_2a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -368,8 +368,8 @@ def run(scheme, Tstar, params=params):
        photo : P1         -> P1s      ; gam1 * P1
        Ared  : P1s + $Ao  -> P1o + Ar ; k1 * P1s * $Ao
        Dox   : $Dr + P1o  -> Do + P1  ; k2 * P1o * $Dr
-       D     : DCR_noE(kcr, kcrb, Ar, $Ao, Cr, Co)
-       B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
+       D     : DCR_noE(kcr, kcrb, Ar, $Ao, Cr, $Co)
+       B     : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
     end
 
     model scheme_2b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -377,8 +377,8 @@ def run(scheme, Tstar, params=params):
        photo : P1             -> P1s              ; gam1 * P1
        Ared  : P1s + $Ao + $E -> P1o + Ar + Estar ; k1 * P1s * $Ao * $E
        Dox   : $Dr + P1o      -> Do + P1          ; k2 * P1o * $Dr
-       D     : DCR_noE(kcr, kcrb, Ar, $Ao, Cr, Co)
-       B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
+       D     : DCR_noE(kcr, kcrb, Ar, $Ao, Cr, $Co)
+       B     : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
     end
 
     model scheme_2c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -386,8 +386,8 @@ def run(scheme, Tstar, params=params):
        photo : P1              -> P1s             ; gam1 * P1
        Ared  : P1s + $Ao       -> P1o + Ar        ; k1 * P1s * $Ao
        Dox   : $Dr + P1o + $E  -> Do + P1 + Estar ; k2 * P1o * $Dr * $E
-       D     : DCR_noE(kcr, kcrb, Ar, Ao, Cr, Co)
-       B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
+       D     : DCR_noE(kcr, kcrb, Ar, Ao, Cr, $Co)
+       B     : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
     end
 
     model scheme_3a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -395,8 +395,8 @@ def run(scheme, Tstar, params=params):
        photo : P1         -> P1s      ; gam1 * P1
        Ared  : P1s + $Ao  -> P1o + Ar ; k1 * P1s * $Ao
        Dox   : $Dr + P1o  -> Do + P1  ; k2 * P1o * $Dr
-       D     : DCR_E(kcr, kcrb, Ar, $Ao, Cr, Co, $E, Estar)
-       B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
+       D     : DCR_E(kcr, kcrb, Ar, $Ao, Cr, $Co, $E, Estar)
+       B     : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
     end
 
     model scheme_3b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -404,8 +404,8 @@ def run(scheme, Tstar, params=params):
        photo : P1           -> P1s                ; gam1 * P1
        Ared  : P1s + $Ao + $E -> P1o + Ar + Estar ; k1 * P1s * $Ao * $E
        Dox   : $Dr + P1o    -> Do + P1            ; k2 * P1o * $Dr
-       D     : DCR_E(kcr, kcrb, Ar, $Ao, Cr, Co, $E, Estar)
-       B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
+       D     : DCR_E(kcr, kcrb, Ar, $Ao, Cr, $Co, $E, Estar)
+       B     : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
     end
 
     model scheme_3c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -413,8 +413,8 @@ def run(scheme, Tstar, params=params):
        photo : P1            -> P1s              ; gam1 * P1
        Ared  : P1s + $Ao      -> P1o + Ar        ; k1 * P1s * $Ao
        Dox   : $Dr + P1o + $E -> Do + P1 + Estar ; k2 * P1o * $Dr * $E
-       D     : DCR_E(kcr, kcrb, Ar, $Ao, Cr, Co, $E, Estar)
-       B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
+       D     : DCR_E(kcr, kcrb, Ar, $Ao, Cr, $Co, $E, Estar)
+       B     : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
     end
     
     model scheme_4d(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -423,8 +423,8 @@ def run(scheme, Tstar, params=params):
        Ared  : P1s + $Ao      -> P1o + Ar        ; k1 * P1s * $Ao
        Dox   : $Dr + P1o      -> Do + P1         ; k2 * P1o * $Dr
        Aox   : Ar + Do        -> $Ao + $Dr       ; k3 * Ar * Do
-       D     : DCR_E(kcr, kcrb, Ar, $Ao, Cr, Co, $E, Estar)
-       B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
+       D     : DCR_E(kcr, kcrb, Ar, $Ao, Cr, $Co, $E, Estar)
+       B     : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
     end
     
     model scheme_4e(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -433,8 +433,8 @@ def run(scheme, Tstar, params=params):
        Ared  : P1s + $Ao      -> P1o + Ar        ; k1 * P1s * $Ao
        Dox   : $Dr + P1o + $E -> Do + P1 + Estar ; k2 * P1o * $Dr * $E
        Aox   : Ar + Do        -> $Ao + $Dr       ; k3 * Ar * Do
-       D     : DCR_E(kcr, kcrb, Ar, $Ao, Cr, Co, $E, Estar)
-       B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
+       D     : DCR_E(kcr, kcrb, Ar, $Ao, Cr, $Co, $E, Estar)
+       B     : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
     end
     
     model scheme_5a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -442,7 +442,7 @@ def run(scheme, Tstar, params=params):
         photo : P1             -> P1s              ; gam1 * P1
         Ared  : P1s + $Ao + $E -> P1o + Ar + Estar ; k1 * P1s * $Ao * $E
         Aox   : Ar + P1o       -> Ao + P           ; k2 * Ar * P1o
-        B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
+        B     : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
     end
     
     model scheme_5b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -450,7 +450,7 @@ def run(scheme, Tstar, params=params):
         photo : P1             -> P1s              ; gam1 * P1
         Ared  : P1s + $Ao      -> P1o + Ar         ; k1 * P1s * $Ao
         Aox   : Ar + P1o + $E  -> Ao + P + Estar   ; k2 * Ar * P1o * $E
-        B: bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
+        B     : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
     end
     
     // pull in whichever scheme you want from above and run that model

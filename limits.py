@@ -29,15 +29,15 @@ def gap_calc(dg_gamma, e_donor=utils.dg_h2o,
     an equal drop in reduction potential, as well as the number of 
     units of energy (equal to the energy drop) required to reduce carbon.
     '''
-    dg_ev         = utils.ev_nm(dg_gamma)
-    kte           = utils.kbt_ev(temperature)
-    gap_ev        = dg_ev / n_steps
-    gap_kt        = gap_ev / kte
-    reduction_gap = e_acceptor - (e_donor + gap_ev)
+    dg_ev         = utils.ev_nm(dg_gamma) # energy of photon in ev
+    kte           = utils.kbt_ev(temperature) # k_B T for given T
+    gap_ev        = dg_ev / n_steps # photon energy split into n_steps
+    gap_kt        = gap_ev / kte # energy gap per step in units of kT
+    reduction_gap = e_acceptor - (e_donor + gap_ev) # uphill gap for CR
     n             = np.ceil(reduction_gap / gap_ev)
-    return gap_kt, n
+    return gap_kt, n, reduction_gap / kte
 
-def construct_model(gap_kt, n_estar, base_rates):
+def construct_model(gap_kt, n_estar, red_gap_kt, base_rates):
     '''
     use the output of rate_calc to construct an antimony model
     of our system. note that n_steps in that function will have to
@@ -48,8 +48,20 @@ def construct_model(gap_kt, n_estar, base_rates):
     k_cs_back  = utils.base_rates["trap"]   * np.exp(-1.0 * gap_kt)
     k_red_back = utils.base_rates["red"]    * np.exp(-2.0 * gap_kt)
     k_ox_back  = utils.base_rates["ox"]     * np.exp(-1.0 * gap_kt)
+    k_cr_back  = utils.base_rates["red"]    * np.exp(-red_gap_kt)
     nu = 1
     
+    '''
+    NB: for this if we need multiple photosystems there's probably
+    a way to do it such that the model takes parameters
+    (gamma, P, Pstar, Ps, Po, Pi, Do, Dr, Ao, Ar, E, Estar)
+    and then we can just chain photosystems as
+    PS1 : photosystem(gamma1, P1, P1star, P1s, P1o, P1i, Dr, Do, A1r, A1o, E, Estar)
+    PS2 : photosystem(gamma2, P2, P2star, P2s, P2o, P2i, A1r, A1o, A2r, A2o, E, Estar)
+    PS3 : photosystem(gamma3, P3, P3star, P3s, P3o, P3i, A2r, A2o, A3r, A3o, E, Estar)
+    D   : DCR_E(kcr, kcrb, A3r, A3o, Cr, Co, E, Estar)
+    or something like that? think about it
+    '''
     r = te.loada(f"""
 
     // dark carbon reduction
@@ -77,6 +89,7 @@ def construct_model(gap_kt, n_estar, base_rates):
         kof      = {utils.base_rates["ox"]}
         kob      = {k_ox_back}
         kcr      = {utils.base_rates["red"]}
+        kcrb     = {k_cr_back}
         kpi      = {utils.base_rates["inhib"]}
 
         species P1, P1star, P1s, P1o, Do, Dr, Co, Cr, E, Estar, Ar, Ao;
@@ -99,9 +112,10 @@ if __name__ == "__main__":
     gaps  = np.zeros(utils.nx, dtype=float)
     rates = np.zeros_like(gaps)
     base_rate = 1.
+    n_gap = 1.0
     for ii, gg in enumerate(gammas):
         gaps[ii], ns[ii] = gap_calc(gg)
-        rates[ii] = base_rate * np.exp(-1.0 * gaps[ii])
+        rates[ii] = base_rate * np.exp(-n_gap * gaps[ii])
     fig, ax = plt.subplots(nrows=2, sharex=True)
     ax[0].plot(gammas, ns)
     ax[1].plot(gammas, rates)
