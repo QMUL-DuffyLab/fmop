@@ -29,7 +29,7 @@ from scipy.constants import h, c, e, Boltzmann
 import light
 import utils
 
-tmax = 10000
+tmax = 1000
 cycles = 10 # only relevant if day/night cycle is turned on
 period = tmax // cycles
 
@@ -344,7 +344,7 @@ def run(scheme, Tstar, params=params):
        photo : P1        -> P1s      ; gam1 * P1
        Cred  : P1s + $Co -> P1o + Cr ; k1 * P1s * $Co
        Dox   : $Dr + P1o -> Do + P1  ; k2 * P1o * $Dr
-       B     : bg(kr, kb, km, kd, kn, Do, $Dr, $Co, Cr, $E, Estar, Cstore)
+       B     : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
     end
 
     model scheme_1b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
@@ -518,18 +518,28 @@ def df_plot(df, output_file):
     fig.savefig(plot_file)
     plt.close()
 
-def loop_over_schemes(Tstar, params=params):
+def loop(constant, params=params):
     '''
-    for a given Tstar, loop over all schemes and run the simulations,
-    returning a dataframe of the steady state results
+    for a given constant Tstar or scheme, loop over all schemes or Tstars
+    and run the simulations, returning a dataframe of steady state results
     '''
-    data = np.full((len(scheme_params.keys()), len(columns)),
-                   np.nan, dtype=float)
-    for ii, scheme in enumerate(scheme_params.keys()):
+    if constant in light.phz_stars['Tstar']:
+        loop_var = scheme_params.keys()
+        loop_str = "scheme"
+    elif constant in scheme_params.keys():
+        loop_var = light.phz_stars['Tstar']
+        loop_str = "Tstar"
+    else:
+        raise ValueError("incorrect value {constant} passed to schemes.loop_over")
+    data = np.full((len(loop_var), len(columns)), np.nan, dtype=float)
+    for ii, vv in enumerate(loop_var):
         try:
-            r, result, df, out_pref, output_dir = run(scheme, Tstar)
+            if loop_str == "Tstar":
+                r, result, df, out_pref, output_dir = run(constant, vv)
+            elif loop_str == "scheme":
+                r, result, df, out_pref, output_dir = run(vv, constant)
         except RuntimeError:
-            print("Runtime error in r.simulate() for scheme {scheme}")
+            print("Runtime error in r.simulate() for {constant}, {vv}")
             continue
         ss_vals = df.loc[len(df)//2]
         arr = np.array([ss_vals['[A_Cr]'], ss_vals['[A_Do]'], 
@@ -537,50 +547,22 @@ def loop_over_schemes(Tstar, params=params):
                    ss_vals['[A_Estar]']])
         data[ii, :] = arr
         fig, ax = simple_plot(result)
-        ax.set_title(f"Scheme {scheme}")
+        if loop_str == "scheme":
+            ax.set_title(f"Scheme {vv}")
+            plot_file = os.path.join(output_dir,
+                        f"{out_pref}_scheme_{vv}.pdf")
+            output_file = os.path.join(output_dir,
+                    f"{out_pref}_steady_state.csv")
+        elif loop_str == "Tstar":
+            ax.set_title(f"Tstar {vv}")
+            plot_file = os.path.join(output_dir,
+                        f"{out_pref}_scheme_{constant}.pdf")
+            output_file = os.path.join(output_dir,
+                    f"scheme_{constant}_steady_state.csv")
         plt.show()
-        plot_file = os.path.join(output_dir,
-                        f"{out_pref}_scheme_{scheme}.pdf")
         fig.savefig(plot_file)
         plt.close()
-
-    # out_pref is the same for each scheme in the inner loop
-    # so we can just use it here as well
-    output_file = os.path.join(output_dir, f"{out_pref}_steady_state.csv")
     df = pd.DataFrame(data, columns = columns, index = idx_s)
-    df.to_csv(output_file)
-    df_plot(df, output_file)
-    return df
-
-def loop_over_stars(scheme, params=params):
-    '''
-    for a given scheme, loop over all stars and run the simulations,
-    returning a dataframe of the steady state results
-    '''
-    data = np.full((len(light.phz_stars), len(columns)),
-                   np.nan, dtype=float)
-    for ii, Tstar in enumerate(light.phz_stars['Tstar']):
-        try:
-            r, result, df, out_pref, output_dir = run(scheme, Tstar)
-        except RuntimeError:
-            print("Runtime error in r.simulate() for scheme {scheme}")
-            continue
-        ss_vals = df.loc[len(df)//2]
-        arr = np.array([ss_vals['[A_Cr]'], ss_vals['[A_Do]'], 
-                   ss_vals['[A_Ar]'], ss_vals['[A_Cstore]'],
-                   ss_vals['[A_Estar]']])
-        data[ii, :] = arr
-        fig, ax = simple_plot(result)
-        plt.show()
-        plot_file = os.path.join(output_dir,
-                        f"{out_pref}_scheme_{scheme}.pdf")
-        fig.savefig(plot_file)
-        plt.close()
-
-    # out_pref is the same for each scheme in the inner loop
-    # so we can just use it here as well
-    output_file = os.path.join(output_dir, f"scheme_{scheme}_steady_state.csv")
-    df = pd.DataFrame(data, columns = columns, index = idx_t)
     df.to_csv(output_file)
     df_plot(df, output_file)
     return df
@@ -588,7 +570,7 @@ def loop_over_stars(scheme, params=params):
 def loop_over_all():
     aa = {}
     for Tstar in light.phz_stars['Tstar']:
-        aa[Tstar] = loop_over_schemes(Tstar, params)
+        aa[Tstar] = loop(Tstar, params)
     df = pd.concat(aa, names=['Tstar', 'scheme'])
     df.set_index(idx_ts)
     output_dir = make_outdir(utils.base_dir, params)

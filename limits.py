@@ -71,38 +71,56 @@ def construct_model(gap_kt, n_estar, red_gap_kt, base_rates):
         bw: $Ao + Cr + {n_estar} $E -> Ar + $Co + {n_estar} Estar; kcrb * $Ao * Cr * ($E^{n_estar})
     end
 
-    model photoinhibition()
+    model photoinhibition(kpi, kpir, Po, Pi, E, Estar)
         species
         pi     : Po              -> Pi         ; kpi * Po
-        repair : Pi + {nu} Estar -> P + {nu} E ; k_repair * Pi * (Estar^{nu})
+        repair : Pi + {nu} Estar -> P + {nu} E ; kpir * Pi * (Estar^{nu})
+    end
+    
+    model photosystem(gam, kd, kcsf, kcsb, krc, krf, krb, kof, kob, P, Pstar, Ps, Po, Ar, Ao, Dr, Do, E, Estar)
+        var species P, Pstar, Ps, Po, Do, Ar, Estar;
+        const species Dr, Ao, E;
+
+        photo  : P               -> Pstar           ; gam * P
+        decay  : Pstar           -> P               ; k_decay * Pstar
+        csf    : Pstar           -> Ps              ; kcsf * Pstar
+        csb    : Ps              -> Pstar           ; kcsb * Ps
+        recomb : Ps              -> P               ; k_recomb * Ps
+        Aredf  : Ps + $Ao + $E   -> Po + Ar + Estar ; krf * Ps * $Ao * $E
+        Aredb  : Po + Ar + Estar -> Ps + $Ao + $E   ; krb * Po * Ar * Estar
+        Doxf   : $Dr + Po        -> Do + P          ; kof * Po * $Dr
+        Doxb   : Do + P          -> $Dr + Po        ; kob * P * Do
     end
 
-    model single(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+    model sim()
         // Variables
-        gam1 = 1 // what's this gonna be
-        k_decay  = {utils.base_rates["decay"]}
-        kcsf     = {utils.base_rates["cs"]}
-        kcsb     = {k_cs_back}
-        k_recomb = {k_recomb}
-        krf      = {utils.base_rates["red"]}
-        krb      = {k_red_back}
-        kof      = {utils.base_rates["ox"]}
-        kob      = {k_ox_back}
-        kcr      = {utils.base_rates["red"]}
-        kcrb     = {k_cr_back}
-        kpi      = {utils.base_rates["inhib"]}
+        gam  = 1 // what's this gonna be
+        kd   = {utils.base_rates["decay"]}
+        kcsf = {utils.base_rates["cs"]}
+        kcsb = {k_cs_back}
+        krc  = {k_recomb}
+        krf  = {utils.base_rates["red"]}
+        krb  = {k_red_back}
+        kof  = {utils.base_rates["ox"]}
+        kob  = {k_ox_back}
+        kcr  = {utils.base_rates["red"]}
+        kcrb = {k_cr_back}
+        kpi  = {utils.base_rates["inhib"]}
+        kpir = {utils.base_rates["inhib"]}
 
-        species P1, P1star, P1s, P1o, Do, Dr, Co, Cr, E, Estar, Ar, Ao;
-        photo  : P1               -> P1star           ; gam1 * P1
-        decay  : P1star           -> P1               ; k_decay * P1star
-        csf    : P1star           -> P1s              ; kcsf * P1star
-        csb    : P1s              -> P1star           ; kcsb * P1s
-        recomb : P1s              -> P1               ; k_recomb * P1s
-        Aredf  : P1s + Ao + E     -> P1o + Ar + Estar ; krf * P1s * Ao * E
-        Aredb  : P1o + Ar + Estar -> P1s + Ao + E     ; krb * P1o * Ar * Estar
-        Doxf   : $Dr + P1o        -> Do + P1          ; kof * P1o * $Dr
-        Doxb   : Do + P1          -> $Dr + P1o        ; kob * P1 * Do
-        DCR    : DCR_E(kcr, kcrb, Ar, Ao, Cr, Co, E, Estar)
+        // common species
+        var species Estar, A1r;
+        const species E, A1o;
+
+        Estar = 0; A1r = 0;
+        $E = 1; $A1o = 1;
+
+        PS1: photosystem(gam, kd, kcsf, kcsb, krc, krf, krb, kof, kob, P, Pstar, Ps, Po, A1r, A1o, Dr, Do, E, Estar)
+        DCR: DCR_E(kcr, kcrb, A1r, A1o, Cr, Co, E, Estar)
+
+        PS1.P     = 1; PS1.Pstar = 0; PS1.Ps = 0; PS1.Po = 0;
+        PS1.Do    = 0;    PS1.Dr = 1;
+        DCR.Cr    = 0;    DCR.Co = 1;
     end
     """)
     return r
