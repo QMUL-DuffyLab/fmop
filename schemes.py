@@ -233,10 +233,11 @@ col_legends = [r'$ C_{\text{red}} $', r'$ D_{\text{ox}} $',
 cols_to_plot = ['C_red', 'Estar']
 labels = [r'$ C_{\text{red}} $', r'$ E^{*} $']
 
-def make_outdir(basedir, params): 
+def make_outdir(basedir, scheme_set): 
     output_dir = os.path.join(basedir,
-                f"maintenance_Cred_{params['maintenance_C']}",
-                f"{params['intensity']}_intensity")
+                f"{scheme_set}",
+                f"maintenance_Cred_{simulation_params['maintenance_C']}",
+                f"{simulation_params['intensity']}_intensity")
     os.makedirs(output_dir, exist_ok=True)
     return output_dir
 
@@ -280,7 +281,7 @@ def run(scheme, Tstar, scheme_params, sim_params=simulation_params):
     sc_p = scheme_params[scheme]
     scheme_to_call = sc_p["scheme_to_call"]
 
-    output_dir = make_outdir(utils.base_dir, sim_params)
+    output_dir = make_outdir(utils.base_dir)
     
     fig, ax = plt.subplots()
     ax.plot(spectrum[:, 0], spectrum[:, 1])
@@ -618,14 +619,6 @@ def run(scheme, Tstar, scheme_params, sim_params=simulation_params):
 
     return r, result, df, out_pref, output_dir
 
-def simple_plot(result):
-    fig, ax = plt.subplots()
-    cols = ['[A_Cr]', '[A_Estar]']
-    for cn, cl in zip(cols, labels):
-        ax.plot(result['time'], result[cn], label=cl)
-    ax.legend()
-    return fig, ax
-
 def df_plot(df, output_file):
     '''
     plot the relevant columns as defined above from dataframe df
@@ -673,7 +666,7 @@ def loop(constant, scheme_params):
                    ss_vals['[A_Ar]'], ss_vals['[A_Cstore]'],
                    ss_vals['[A_Estar]']])
         data[ii, :] = arr
-        fig, ax = simple_plot(result)
+        fig, ax = utils.simple_plot(result, ['[A_Cr]', '[A_Estar]'], labels)
         if loop_str == "scheme":
             ax.set_title(f"Scheme {vv}")
             plot_file = os.path.join(output_dir,
@@ -689,7 +682,7 @@ def loop(constant, scheme_params):
         plt.show()
         fig.savefig(plot_file)
         plt.close()
-    idx_s = pd.Index(params.keys(), name="scheme")
+    idx_s = pd.Index(scheme_params.keys(), name="scheme")
     df = pd.DataFrame(data, columns = columns, index = idx_s)
     df.to_csv(output_file)
     df_plot(df, output_file)
@@ -700,11 +693,11 @@ def loop_over_all(scheme_params):
     for Tstar in light.phz_stars['Tstar']:
         aa[Tstar] = loop(Tstar, scheme_params)
     df = pd.concat(aa, names=['Tstar', 'scheme'])
-    idx_s = pd.Index(params.keys(), name="scheme")
+    idx_s = pd.Index(scheme_params.keys(), name="scheme")
     idx_t = pd.Index(light.phz_stars['Tstar'], name="Tstar")
     idx_ts = pd.MultiIndex.from_product([idx_t, idx_s])
     df.set_index(idx_ts)
-    output_dir = make_outdir(utils.base_dir, params)
+    output_dir = make_outdir(utils.base_dir)
     output_file = os.path.join(output_dir, "all_steady_state.csv")
     df.to_csv(output_file)
     # plot - this is ugly but whatever

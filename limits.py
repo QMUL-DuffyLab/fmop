@@ -9,6 +9,7 @@ of oxygenic photosynthesis.
 """
 
 import os
+import roadrunner
 import tellurium as te
 import numpy as np
 import pandas as pd
@@ -17,10 +18,11 @@ from scipy.constants import h, c, e, Boltzmann
 import light
 import utils
 
-gammas = np.linspace(*utils.xlim, utils.nx)
+gammas = np.linspace(*utils.xlim, utils.nx, dtype=int)
+output_dir = os.path.join("out", "limits")
 
 def gap_calc(dg_gamma, e_donor=utils.dg_h2o,
-        e_acceptor=utils.dg_co2, n_steps=5, temperature=273):
+        e_acceptor=utils.dg_co2, n_steps=3, temperature=273):
     '''
     for given incident light wavelength (in nm), base_rate (s^{-1}), 
     donor and acceptor energies (eV), number of steps and temperature (K),
@@ -44,12 +46,9 @@ def construct_model(gap_kt, n_estar, red_gap_kt, base_rates):
     be changed if the structure of this reaction network changes; it's
     not clever enough to recognise if you add or remove a reaction
     '''
-    k_recomb   = utils.base_rates["recomb"] * np.exp(-4.0 * gap_kt)
-    k_cs_back  = utils.base_rates["trap"]   * np.exp(-1.0 * gap_kt)
-    k_red_back = utils.base_rates["red"]    * np.exp(-2.0 * gap_kt)
-    k_ox_back  = utils.base_rates["ox"]     * np.exp(-1.0 * gap_kt)
-    k_cr_back  = utils.base_rates["red"]    * np.exp(-red_gap_kt)
-    nu = 1
+    k_cs_back  = utils.base_rates["cs"]  * np.exp(-1.0 * gap_kt)
+    k_red_back = utils.base_rates["red"] * np.exp(-1.0 * gap_kt)
+    k_cr_back  = utils.base_rates["red"] * np.exp(-red_gap_kt)
     
     '''
     NB: for this if we need multiple photosystems there's probably
@@ -62,86 +61,132 @@ def construct_model(gap_kt, n_estar, red_gap_kt, base_rates):
     D   : DCR_E(kcr, kcrb, A3r, A3o, Cr, Co, E, Estar)
     or something like that? think about it
     '''
-    r = te.loada(f"""
+    antstr = f"""
 
     // dark carbon reduction
-    model DCR_E(kcr, kcrb, Ar, Ao, Cr, Co, E, Estar)
-        species Ar, Ao, Cr, Co, E, Estar
-        fw: Ar + $Co + {n_estar} Estar -> $Ao + Cr + {n_estar} $E; kcr * Ar * (Estar^{n_estar})
-        bw: $Ao + Cr + {n_estar} $E -> Ar + $Co + {n_estar} Estar; kcrb * $Ao * Cr * ($E^{n_estar})
+    model DCR_E(kcr, kcrb, Dr, Do, Cr, Co, E, Estar)
+        species Do, Cr, Estar
+        const species Dr, Co, E
+        fw: $Dr + $Co + {n_estar} Estar -> Do + Cr + {n_estar} $E; kcr * $Dr * (Estar^{n_estar})
+        bw: Do + Cr + {n_estar} $E -> $Dr + $Co + {n_estar} Estar; kcrb * Do * Cr * ($E^{n_estar})
     end
 
-    model photoinhibition(kpi, kpir, Po, Pi, E, Estar)
-        species
-        pi     : Po              -> Pi         ; kpi * Po
-        repair : Pi + {nu} Estar -> P + {nu} E ; kpir * Pi * (Estar^{nu})
-    end
-    
-    model photosystem(gam, kd, kcsf, kcsb, krc, krf, krb, kof, kob, P, Pstar, Ps, Po, Ar, Ao, Dr, Do, E, Estar)
-        var species P, Pstar, Ps, Po, Do, Ar, Estar;
-        const species Dr, Ao, E;
-
-        photo  : P               -> Pstar           ; gam * P
-        decay  : Pstar           -> P               ; k_decay * Pstar
-        csf    : Pstar           -> Ps              ; kcsf * Pstar
-        csb    : Ps              -> Pstar           ; kcsb * Ps
-        recomb : Ps              -> P               ; k_recomb * Ps
-        Aredf  : Ps + $Ao + $E   -> Po + Ar + Estar ; krf * Ps * $Ao * $E
-        Aredb  : Po + Ar + Estar -> Ps + $Ao + $E   ; krb * Po * Ar * Estar
-        Doxf   : $Dr + Po        -> Do + P          ; kof * Po * $Dr
-        Doxb   : Do + P          -> $Dr + Po        ; kob * P * Do
+    model photosystem(gam, kd, kcsf, kcsb, krc, kef, keb, P, Pstar, Ps, E, Estar)
+        var species P, Pstar, Ps, Estar;
+        const species E;
+        photo  : P         -> Pstar     ; gam * P
+        decay  : Pstar     -> P         ; kd * Pstar
+        csf    : Pstar     -> Ps        ; kcsf * Pstar
+        csb    : Ps        -> Pstar     ; kcsb * Ps
+        recomb : Ps        -> P         ; krc * Ps
+        esgf   : Ps + $E   -> P + Estar ; kef * Ps * $E
+        esgb   : P + Estar -> Ps + $E   ; keb * P * Estar
     end
 
     model sim()
         // Variables
-        gam  = 1 // what's this gonna be
+        gam  = 1
+        kdor = 1
+        kcrr = 1
         kd   = {utils.base_rates["decay"]}
         kcsf = {utils.base_rates["cs"]}
-        kcsb = {k_cs_back}
-        krc  = {k_recomb}
-        krf  = {utils.base_rates["red"]}
-        krb  = {k_red_back}
-        kof  = {utils.base_rates["ox"]}
-        kob  = {k_ox_back}
+        krc  = {utils.base_rates["recomb"]}
+        kef  = {utils.base_rates["red"]}
         kcr  = {utils.base_rates["red"]}
-        kcrb = {k_cr_back}
-        kpi  = {utils.base_rates["inhib"]}
-        kpir = {utils.base_rates["inhib"]}
+        kcsb = {k_cs_back} // Ps -> Pstar
+        keb  = {k_red_back} // Estar -> E
+        kcrb = {k_cr_back} // Cr -> Co
 
         // common species
-        var species Estar, A1r;
-        const species E, A1o;
+        var species Estar
+        const species E
 
-        Estar = 0; A1r = 0;
-        $E = 1; $A1o = 1;
+        Estar = 0; $E = 1;
 
-        PS1: photosystem(gam, kd, kcsf, kcsb, krc, krf, krb, kof, kob, P, Pstar, Ps, Po, A1r, A1o, Dr, Do, E, Estar)
-        DCR: DCR_E(kcr, kcrb, A1r, A1o, Cr, Co, E, Estar)
+        PS1: photosystem(gam, kd, kcsf, kcsb, krc, kef, keb, P, Pstar, Ps, E, Estar)
+        DCR: DCR_E(kcr, kcrb, Dr, Do, Cr, Co, E, Estar)
+        Doxr   : Do -> $Dr ; kdor * Do
+        Credr  : Cr -> $Co ; kcrr * Cr
 
-        PS1.P     = 1; PS1.Pstar = 0; PS1.Ps = 0; PS1.Po = 0;
-        PS1.Do    = 0;    PS1.Dr = 1;
-        DCR.Cr    = 0;    DCR.Co = 1;
+        PS1.P     = 1; PS1.Pstar = 0; PS1.Ps = 0;
+        Do        = 0; $Dr       = 1;
+        Cr        = 0; $Co       = 1;
     end
-    """)
-    return r
-    
-if __name__ == "__main__":
-    ns    = np.zeros(utils.nx, dtype=int)
-    gaps  = np.zeros(utils.nx, dtype=float)
-    rates = np.zeros_like(gaps)
-    base_rate = 1.
-    n_gap = 1.0
-    for ii, gg in enumerate(gammas):
-        gaps[ii], ns[ii] = gap_calc(gg)
-        rates[ii] = base_rate * np.exp(-n_gap * gaps[ii])
+    """
+    r = te.loada(antstr)
+    r.exportToAntimony(os.path.join(output_dir, f"ant_{gg}nm.txt"))
+    sbml_str = te.antimonyToSBML(antstr)
+    rr = roadrunner.RoadRunner(sbml_str)
+    return r, rr
+
+def plot_df(df):
     fig, ax = plt.subplots(nrows=2, sharex=True)
-    ax[0].plot(gammas, ns)
-    ax[1].plot(gammas, rates)
+    ax[0].plot(df['wavelength'].to_numpy(),
+               df['E* steady state'].to_numpy(), label=r'$ E^{*} $')
+    #ax[1].plot(gammas, rates)
+    ax[1].plot(df['wavelength'].to_numpy(),
+               df['C_r steady state'].to_numpy(), label=r'$ C_{\text{red}} $')
     ax[1].set_xlabel(r'$ \Delta G^{\gamma} (\text{nm}) $')
-    ax[0].set_ylabel(r'n $ (E^{*}) $')
-    ax[1].set_ylabel(r'backward rate $ (\text{s}^{-1}) $')
+    ax[0].set_ylabel(r' $ [(E^{*})] $')
+    ax[1].set_ylabel(r'[Cr]')
+    ax[0].set_yscale('log')
     ax[1].set_yscale('log')
+    #ax[1].set_yscale('log')
     ax[0].grid(visible=True)
     ax[1].grid(visible=True)
+    ax[1].legend()
     plt.show()
+    fig.savefig(os.path.join(output_dir, "results.pdf"))
     plt.close()
+    
+if __name__ == "__main__":
+    do_calc = False
+    if do_calc:
+        ns    = np.zeros(utils.nx, dtype=int)
+        gaps  = np.zeros(utils.nx, dtype=float)
+        rgkt  = np.zeros_like(gaps)
+        rates = np.zeros_like(gaps)
+        cr_ss = np.zeros_like(gaps)
+        estar_ss = np.zeros_like(gaps)
+        base_rate = 1.
+        n_gap = 1.0
+        os.makedirs(output_dir, exist_ok=True)
+        for ii, gg in enumerate(gammas):
+            gaps[ii], ns[ii], rgkt[ii] = gap_calc(gg)
+            rates[ii] = base_rate * np.exp(-n_gap * gaps[ii])
+            r, rr = construct_model(gaps[ii], ns[ii], rgkt[ii], utils.base_rates)
+            '''
+            this fails when n_estar > 1, i think, for some reason?
+            ss = rr.steadyState()
+            rr.steadyStateSelections = ['[Cr]','[Estar]']
+            vals = rr.getSteadyStateValues()
+            '''
+            # hence, fallback to this
+            result = r.simulate(0, 100, 101)
+            df = pd.DataFrame(result, columns=result.colnames)
+            final_vals = df.loc[len(df) - 1]
+            fig, ax = utils.simple_plot(result, ['[Cr]','[Estar]'],
+                    [r'$ C_{\text{red}} $', r'$ E^{*} $'])
+            ax.set_title(r'$ \lambda_p = $' + f"{gg}nm, n = {ns[ii]}")
+            plt.show()
+            plt.close()
+            cr_ss[ii]    = result['[Cr]'][-1]
+            estar_ss[ii] = result['[Estar]'][-1]
+            print(f"l_p = {gg}, n = {ns[ii]}, final = {final_vals}, cr = {cr_ss[ii]}, e* = {estar_ss[ii]}")
+            
+        df = pd.DataFrame({
+            'wavelength'         : gammas,
+            'gap'                : gaps,
+            'n'                  : ns,
+            'reduction gap (kt)' : rgkt,
+            'C_r steady state'   : cr_ss,
+            'E* steady state'    : estar_ss,
+            })
+        df_file = os.path.join(output_dir, "results.csv")
+        df.to_csv(df_file, index=False)
+        plot_df(df)
+    
+    else:
+        df_file = os.path.join(output_dir, "results.csv")
+        df = pd.read_csv(df_file)
+        plot_df(df)

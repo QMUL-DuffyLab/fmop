@@ -8,14 +8,16 @@ various common bits
 """
 
 import numpy as np
+import matplotlib.pyplot as plt
 from scipy.constants import h, c, e, Boltzmann
 
 base_dir = "out"
 hcnm = (h * c) / (1.0E-9)
 dg_h2o = -5.10 # in eV
 dg_co2 = -3.85 # in eV
-xlim = [400.0, 2000.0]
-nx = int(xlim[1] - xlim[0])
+xlim = [400.0, 4000.0]
+increment = 10
+nx = int(xlim[1] - xlim[0])//increment + 1 # + 1 for linspace
 
 def kbt_ev(T):
     return T * (Boltzmann / e)
@@ -25,7 +27,7 @@ def ev_nm(x):
     ''' convert eV to nm and vice-versa '''
     return (hcnm / e) * (1.0 / x)
 
-base_rates = {
+diff_rates = {
 "cs"     : 1.0 / 10.0E-12,
 "decay"  : 1.0 / 1.0E-9,
 "ox"     : 1.0 / 1.0E-3,
@@ -35,3 +37,21 @@ base_rates = {
 "recomb" : 1.0,
 "inhib"  : 1.0,
 }
+
+base_rates = {
+"cs"     : 1.0,
+"decay"  : 1.0,
+"ox"     : 1.0,
+"lin"    : 1.0,
+"cyc"    : 1.0,
+"red"    : 1.0,
+"recomb" : 1.0,
+"inhib"  : 1.0,
+}
+
+def simple_plot(result, cols, labels):
+    fig, ax = plt.subplots()
+    for cn, cl in zip(cols, labels):
+        ax.plot(result['time'], result[cn], label=cl)
+    ax.legend()
+    return fig, ax
