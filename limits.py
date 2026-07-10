@@ -88,6 +88,7 @@ def construct_model(gap_kt, n_estar, red_gap_kt, base_rates):
         gam  = 1
         kdor = 1
         kcrr = 1
+        kesr = 1
         kd   = {utils.base_rates["decay"]}
         kcsf = {utils.base_rates["cs"]}
         krc  = {utils.base_rates["recomb"]}
@@ -105,8 +106,9 @@ def construct_model(gap_kt, n_estar, red_gap_kt, base_rates):
 
         PS1: photosystem(gam, kd, kcsf, kcsb, krc, kef, keb, P, Pstar, Ps, E, Estar)
         DCR: DCR_E(kcr, kcrb, Dr, Do, Cr, Co, E, Estar)
-        Doxr   : Do -> $Dr ; kdor * Do
-        Credr  : Cr -> $Co ; kcrr * Cr
+        Doxr   : Do    -> $Dr ; kdor * Do
+        Credr  : Cr    -> $Co ; kcrr * Cr
+        Esr    : Estar -> $E  ; kesr * Estar
 
         PS1.P     = 1; PS1.Pstar = 0; PS1.Ps = 0;
         Do        = 0; $Dr       = 1;
@@ -120,24 +122,36 @@ def construct_model(gap_kt, n_estar, red_gap_kt, base_rates):
     return r, rr
 
 def plot_df(df):
-    fig, ax = plt.subplots(nrows=2, sharex=True)
-    ax[0].plot(df['wavelength'].to_numpy(),
-               df['E* steady state'].to_numpy(), label=r'$ E^{*} $')
-    #ax[1].plot(gammas, rates)
-    ax[1].plot(df['wavelength'].to_numpy(),
-               df['C_r steady state'].to_numpy(), label=r'$ C_{\text{red}} $')
-    ax[1].set_xlabel(r'$ \Delta G^{\gamma} (\text{nm}) $')
-    ax[0].set_ylabel(r' $ [(E^{*})] $')
-    ax[1].set_ylabel(r'[Cr]')
-    ax[0].set_yscale('log')
-    ax[1].set_yscale('log')
-    #ax[1].set_yscale('log')
-    ax[0].grid(visible=True)
-    ax[1].grid(visible=True)
-    ax[1].legend()
+    x     = df['wavelength'].to_numpy()
+    estar = df['E* steady state'].to_numpy()
+    cr    = df['C_r steady state'].to_numpy()
+    esg = estar * df['gap'].to_numpy()
+    
+    
+    fig, ax = plt.subplots()
+    ax.plot(x, cr/np.max(cr), label=r'$ C_{\text{red}} $')
+    ax.set_xlabel(r'$ \Delta G^{\gamma} (\text{nm}) $')
+    ax.set_ylabel(r'$ \left[ C_{\text{red}} \right] $ relative to max' )
+    #ax.set_yscale('log')
+    #ax.set_xscale('log')
+    ax.axvline(x=1300, color='k', ls='--', lw=1.5)
+    ax.set_ylim([0.8*np.min(cr),1.1])
+    ax.grid(visible=True)
+    ax.legend()
     plt.show()
-    fig.savefig(os.path.join(output_dir, "results.pdf"))
+    fig.savefig(os.path.join(output_dir, "c_r.pdf"))
     plt.close()
+    
+    fig, ax = plt.subplots()
+    ax.plot(x, esg, marker='o', label=r'$ E^{*} \Delta G $')
+    ax.set_xlabel(r'$ \lambda_p (\text{nm}) $')
+    ax.set_ylabel(r'$ \left[E^{*}\right] \Delta G $ (kT)')
+    ax.grid(visible=True)
+    ax.legend()
+    plt.show()
+    fig.savefig(os.path.join(output_dir, "estar_gap.pdf"))
+    plt.close()
+    
     
 if __name__ == "__main__":
     do_calc = False
