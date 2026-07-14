@@ -51,7 +51,8 @@ later two-photon schemes require it and they're called
 in the f-string as exc_rate[0], exc_rate[1], so that list
 must have two members
 '''
-one_photon_params = { # reddest usable wavelength of light
+params = {
+    "one_photon": {# reddest usable wavelength of light
     "1a" : { 
         'scheme_to_call': "one_p_1a",
         'deltaG_gamma': [utils.ev_nm(611.0), np.nan],
@@ -160,9 +161,8 @@ one_photon_params = { # reddest usable wavelength of light
         'resp_stoi': 5,
         'dcr_stoi': 5,
         },
-    }
-
-two_photon_uncoupled_params = {
+    },
+    "two_photon_uncoupled": {
     "1a" : { 
         'scheme_to_call': "two_p_1a",
         'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(611.0)],
@@ -205,7 +205,38 @@ two_photon_uncoupled_params = {
         'resp_stoi': 5,
         'dcr_stoi': 0, # not used for scheme 1
         },
+    "3a" : { 
+        'scheme_to_call': "one_p_3a",
+        'deltaG_gamma': [utils.ev_nm(700.0), utils.ev_nm(700.0)],
+        'resp_stoi': 5,
+        'dcr_stoi': 1,
+        },
+    "4a" : { 
+        'scheme_to_call': "one_p_3a",
+        'deltaG_gamma': [utils.ev_nm(1192.0), utils.ev_nm(1192.0)],
+        'resp_stoi': 5,
+        'dcr_stoi': 4,
+        },    
+    "5a" : { 
+        'scheme_to_call': "two_p_5a",
+        'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(1192.0)],
+        'resp_stoi': 5,
+        'dcr_stoi': 0,
+        },
+    "5b" : { 
+        'scheme_to_call': "two_p_5b",
+        'deltaG_gamma': [utils.ev_nm(700.0), utils.ev_nm(1192.0)],
+        'resp_stoi': 5,
+        'dcr_stoi': 1,
+        },
+    "5c" : { 
+        'scheme_to_call': "two_p_5b",
+        'deltaG_gamma': [utils.ev_nm(1192.0), utils.ev_nm(1192.0)],
+        'resp_stoi': 5,
+        'dcr_stoi': 4,
+        },
     }
+}
 
 simulation_params = {
     "light"         : "switch",
@@ -241,7 +272,7 @@ def make_outdir(basedir, scheme_set):
     os.makedirs(output_dir, exist_ok=True)
     return output_dir
 
-def run(scheme, Tstar, scheme_params, sim_params=simulation_params):
+def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
     '''
     wrapper to set up all the antimony models, pick the one
     you want with the parameters you want, simulate, plot
@@ -270,6 +301,7 @@ def run(scheme, Tstar, scheme_params, sim_params=simulation_params):
 
     NB: haven't fixed what these will be yet
     '''
+    scheme_params = params[scheme_set]
     if scheme not in scheme_params.keys():
         raise KeyError(f"Incorrect scheme provided to run(). Scheme = {scheme}, allowed schemes are {params.keys()}")
     if Tstar not in light.phz_stars['Tstar']:
@@ -281,7 +313,7 @@ def run(scheme, Tstar, scheme_params, sim_params=simulation_params):
     sc_p = scheme_params[scheme]
     scheme_to_call = sc_p["scheme_to_call"]
 
-    output_dir = make_outdir(utils.base_dir)
+    output_dir = make_outdir(utils.base_dir, scheme_set)
     
     fig, ax = plt.subplots()
     ax.plot(spectrum[:, 0], spectrum[:, 1])
@@ -573,6 +605,31 @@ def run(scheme, Tstar, scheme_params, sim_params=simulation_params):
         D1  : DCR_noE(kcr, kcrb, Ar, $Ao, Cr, $Co)
         B   : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
     end
+    
+    model two_p_3a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
+        PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, $Ao, $E, Estar)
+        PC2 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, $Ao, $E, Estar)
+        D1  : DCR_E(kcr, kcrb, Ar, $Ao, Cr, $Co, $E, Estar)
+        B   : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
+    end
+    
+    model two_p_5a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
+        PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, $Ao, $E, Estar)
+        PC2 : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, $Ao, $E, Estar)
+        D1  : DCR_noE(kcr, kcrb, Ar, $Ao, Cr, $Co)
+        B   : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
+    end
+    
+    model two_p_5b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
+        PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, $Ao, $E, Estar)
+        PC2 : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, $Ao, $E, Estar)
+        D1  : DCR_E(kcr, kcrb, Ar, $Ao, Cr, $Co, $E, Estar)
+        B   : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
+    end
+    
    
     // pull in whichever scheme you want from above and run that model
     model sim()
@@ -636,11 +693,12 @@ def df_plot(df, output_file):
     fig.savefig(plot_file)
     plt.close()
 
-def loop(constant, scheme_params):
+def loop(constant, scheme_set):
     '''
     for a given constant Tstar or scheme, loop over all schemes or Tstars
     and run the simulations, returning a dataframe of steady state results
     '''
+    scheme_params = params[scheme_set]
     if constant in light.phz_stars['Tstar']:
         loop_var = scheme_params.keys()
         loop_str = "scheme"
@@ -654,10 +712,10 @@ def loop(constant, scheme_params):
         try:
             if loop_str == "Tstar":
                 r, result, df, out_pref, output_dir = run(constant, vv,
-                                                        scheme_params)
+                                                        scheme_set)
             elif loop_str == "scheme":
                 r, result, df, out_pref, output_dir = run(vv, constant,
-                                                        scheme_params)
+                                                        scheme_set)
         except RuntimeError:
             print("Runtime error in r.simulate() for {constant}, {vv}")
             continue
@@ -688,10 +746,11 @@ def loop(constant, scheme_params):
     df_plot(df, output_file)
     return df
 
-def loop_over_all(scheme_params):
+def loop_over_all(scheme_set):
+    scheme_params = params[scheme_set]
     aa = {}
     for Tstar in light.phz_stars['Tstar']:
-        aa[Tstar] = loop(Tstar, scheme_params)
+        aa[Tstar] = loop(Tstar, scheme_set)
     df = pd.concat(aa, names=['Tstar', 'scheme'])
     idx_s = pd.Index(scheme_params.keys(), name="scheme")
     idx_t = pd.Index(light.phz_stars['Tstar'], name="Tstar")
@@ -718,5 +777,5 @@ def loop_over_all(scheme_params):
     return df
 
 if __name__ == "__main__":
-    params = two_photon_uncoupled_params
-    df = loop_over_all(params)
+    scheme_set = "two_photon_uncoupled"
+    df = loop_over_all(scheme_set)
