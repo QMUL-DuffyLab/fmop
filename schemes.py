@@ -235,6 +235,12 @@ params = {
         'resp_stoi': 5,
         'dcr_stoi': 4,
         },
+    "6a" : { 
+        'scheme_to_call': "two_p_6a",
+        'deltaG_gamma': [utils.ev_nm(1192.0), utils.ev_nm(1192.0)],
+        'resp_stoi': 5,
+        'dcr_stoi': 5,
+        },
     }
 }
 
@@ -611,6 +617,7 @@ def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
         PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, $Ao, $E, Estar)
         PC2 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, $Ao, $E, Estar)
         D1  : DCR_E(kcr, kcrb, Ar, $Ao, Cr, $Co, $E, Estar)
+        Aox : Ar + Do        -> $Ao + $Dr       ; k3 * Ar * Do
         B   : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
     end
     
@@ -630,6 +637,13 @@ def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
         B   : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
     end
     
+    model two_p_6a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
+        PC1 : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, $Ao, $E, Estar)
+        PC2 : photoEA(gam2, k1, k2, P2, P2s, P2o, $Dr, Do, Ar, $Ao, $E, Estar)
+        D1  : DCR_E(kcr, kcrb, Ar, $Ao, Cr, $Co, $E, Estar)
+        B   : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
+    end
    
     // pull in whichever scheme you want from above and run that model
     model sim()
@@ -756,7 +770,7 @@ def loop_over_all(scheme_set):
     idx_t = pd.Index(light.phz_stars['Tstar'], name="Tstar")
     idx_ts = pd.MultiIndex.from_product([idx_t, idx_s])
     df.set_index(idx_ts)
-    output_dir = make_outdir(utils.base_dir)
+    output_dir = make_outdir(utils.base_dir, scheme_set)
     output_file = os.path.join(output_dir, "all_steady_state.csv")
     df.to_csv(output_file)
     # plot - this is ugly but whatever
