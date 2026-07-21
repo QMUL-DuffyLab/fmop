@@ -230,7 +230,7 @@ params = {
         'dcr_stoi': 1,
         },
     "5c" : { 
-        'scheme_to_call': "two_p_5b",
+        'scheme_to_call': "two_p_5c",
         'deltaG_gamma': [utils.ev_nm(1192.0), utils.ev_nm(1192.0)],
         'resp_stoi': 5,
         'dcr_stoi': 4,
@@ -240,6 +240,54 @@ params = {
         'deltaG_gamma': [utils.ev_nm(1192.0), utils.ev_nm(1192.0)],
         'resp_stoi': 5,
         'dcr_stoi': 5,
+        },
+    "7a" : { 
+        'scheme_to_call': "two_p_7a",
+        'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(700.0)],
+        'resp_stoi': 5,
+        'dcr_stoi': 1,
+        },
+    "7b" : { 
+        'scheme_to_call': "two_p_7a",
+        'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(1192.0)],
+        'resp_stoi': 5,
+        'dcr_stoi': 4,
+        },
+    "8a" : { 
+        'scheme_to_call': "two_p_8a",
+        'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(611.0)],
+        'resp_stoi': 5,
+        'dcr_stoi': 1,
+        },
+    "8b" : { 
+        'scheme_to_call': "two_p_8a",
+        'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(954.0)],
+        'resp_stoi': 5,
+        'dcr_stoi': 4,
+        },
+    "9a" : { 
+        'scheme_to_call': "two_p_9a",
+        'deltaG_gamma': [utils.ev_nm(541.0), utils.ev_nm(700.0)],
+        'resp_stoi': 5,
+        'dcr_stoi': 1,
+        },
+    "9b" : { 
+        'scheme_to_call': "two_p_9a",
+        'deltaG_gamma': [utils.ev_nm(541.0), utils.ev_nm(1192.0)],
+        'resp_stoi': 5,
+        'dcr_stoi': 4,
+        },
+    "10a" : { 
+        'scheme_to_call': "two_p_10a",
+        'deltaG_gamma': [utils.ev_nm(541.0), utils.ev_nm(611.0)],
+        'resp_stoi': 5,
+        'dcr_stoi': 1,
+        },
+    "10b" : { 
+        'scheme_to_call': "two_p_10a",
+        'deltaG_gamma': [utils.ev_nm(541.0), utils.ev_nm(954.0)],
+        'resp_stoi': 5,
+        'dcr_stoi': 4,
         },
     }
 }
@@ -394,8 +442,8 @@ def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
 
     model storage(kd, kn, Cr, Cstore)
         species Cr, Cstore
-        fw : Cr     -> Cstore ; kd * Cr
-        // bw : Cstore -> Cr     ; kn * Cstore
+        fw : Cr  -> $Co ; kd * Cr
+        // bw : $Co -> Cr  ; kn
     end
 
     model bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore)
@@ -417,32 +465,39 @@ def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
         // this is currently irreversible, per Chris
         // to make reversible just uncomment the backward reaction
         species Ar, Ao, Cr, Co, E, Estar
-        fw: Ar + $Co + {sc_p["dcr_stoi"]} Estar -> $Ao + Cr + {sc_p["dcr_stoi"]} $E; kcr * Ar * (Estar^{sc_p["dcr_stoi"]})
-        // bw: $Ao + Cr + {sc_p["dcr_stoi"]} $E -> Ar + $Co + {sc_p["dcr_stoi"]} Estar; kcrb * $Ao * Cr * ($E^{sc_p["dcr_stoi"]})
+        fw: Ar + Co + {sc_p["dcr_stoi"]} Estar -> Ao + Cr + {sc_p["dcr_stoi"]} E; kcr * Ar * Co * (Estar^{sc_p["dcr_stoi"]})
+        // bw: Ao + Cr + {sc_p["dcr_stoi"]} E -> Ar + Co + {sc_p["dcr_stoi"]} Estar; kcrb * Ao * Cr * (E^{sc_p["dcr_stoi"]})
     end
 
     // just acceptor reduction and donor oxidation
     model photo(gam, k1, k2, P, Ps, Po, Dr, Do, Ar, Ao, E, Estar)
        species P, Ps, Po, Dr, Do, Ar, Ao, E, Estar
-       PE   : P        -> Ps      ; gam * P
-       Ared : Ps + $Ao -> Po + Ar ; k1 * Ps
-       Dox  : $Dr + Po -> Do + P  ; k2 * Po
+       PE   : P       -> Ps      ; gam * P
+       Ared : Ps + Ao -> Po + Ar ; k1 * Ps * Ao
+       Dox  : Dr + Po -> Do + P  ; k2 * Po * Dr
     end
 
     // same but with energy production at the acceptor side
     model photoEA(gam, k1, k2, P, Ps, Po, Dr, Do, Ar, Ao, E, Estar)
        species P, Ps, Po, Dr, Do, Ao, Ar, E, Estar
-       PE   : P             -> Ps              ; gam * P
-       Ared : Ps + $Ao + $E -> Po + Ar + Estar ; k1 * Ps
-       Dox  : $Dr + Po      -> Do + P          ; k2 * Po
+       PE   : P             -> Ps             ; gam * P
+       Ared : Ps + Ao + E -> Po + Ar + Estar  ; k1 * Ps * Ao * E
+       Dox  : Dr + Po      -> Do + P          ; k2 * Po * Dr
     end
 
     // same again but with energy production at the donor side
     model photoED(gam, k1, k2, P, Ps, Po, Dr, Do, Ar, Ao, E, Estar)
        species P, Ps, Po, Dr, Do, Ao, Ar, E, Estar
-       PE   : P             -> Ps              ; gam * P
-       Ared : Ps + $Ao      -> Po + Ar         ; k1 * Ps
-       Dox  : $Dr + Po + $E -> Do + P + Estar  ; k2 * Po
+       PE   : P            -> Ps             ; gam * P
+       Ared : Ps + Ao      -> Po + Ar        ; k1 * Ps * Ao
+       Dox  : Dr + Po + E -> Do + P + Estar  ; k2 * Po * Dr * E
+    end
+    
+    model cyc(gam, k1, k2, P, Ps, Po, Ar, Ao, E, Estar)
+       species P, Ps, Po, Dr, Do, Ao, Ar, E, Estar
+       PE   : P            -> Ps              ; gam * P
+       Ared : Ps + Ao      -> Po + Ar         ; k1 * Ps
+       Aox  : Ar + Po + $E -> Ao + P + Estar  ; k2 * Po * Ar
     end
 
     /* NB: every model must have a name of the form `scheme_SCHEMELABEL`,
@@ -533,27 +588,27 @@ def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
     end
     
     model one_p_5a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
-        PC : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, $Ao, $E, Estar)
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;  
+        PC : photo(gam1, k1, k2, P1, P1s, P1o, Ar, $Ao, Ar, $Ao, $E, Estar)
         B  : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
     end
     
     model one_p_5b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
         species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
-        PC : photoED(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, $Ao, $E, Estar)
+        PC : photoED(gam1, k1, k2, P1, P1s, P1o, Ar, $Ao, Ar, $Ao, $E, Estar)
         B  : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
     end
     
     model one_p_5c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
         species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
-        PC : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, $Ao, $E, Estar)
+        PC : photoEA(gam1, k1, k2, P1, P1s, P1o, Ar, $Ao, Ar, $Ao, $E, Estar)
         D  : DCR_E(kcr, kcrb, $Dr, Do, Cr, $Co, $E, Estar)
         B  : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
     end
     
     model one_p_5d(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
         species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
-        PC : photoED(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, $Ao, $E, Estar)
+        PC : photoED(gam1, k1, k2, P1, P1s, P1o, Ar, $Ao, Ar, $Ao, $E, Estar)
         D  : DCR_E(kcr, kcrb, $Dr, Do, Cr, $Co, $E, Estar)
         B  : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
     end
@@ -615,16 +670,16 @@ def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
     model two_p_3a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
         species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
         PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, $Ao, $E, Estar)
-        PC2 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, $Ao, $E, Estar)
-        D1  : DCR_E(kcr, kcrb, Ar, $Ao, Cr, $Co, $E, Estar)
+        PC2 : photo(gam2, k3, k4, P2, P2s, P2o, $Dr, Do, Ar, $Ao, $E, Estar)
         Aox : Ar + Do        -> $Ao + $Dr       ; k3 * Ar * Do
+        D1  : DCR_E(kcr, kcrb, Ar, $Ao, Cr, $Co, $E, Estar)
         B   : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
     end
     
     model two_p_5a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
         species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
         PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, $Ao, $E, Estar)
-        PC2 : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, $Ao, $E, Estar)
+        PC2 : photoEA(gam2, k3, k4, P2, P2s, P2o, Br, $Bo, Br, $Bo, $E, Estar)
         D1  : DCR_noE(kcr, kcrb, Ar, $Ao, Cr, $Co)
         B   : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
     end
@@ -632,15 +687,56 @@ def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
     model two_p_5b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
         species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
         PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, $Ao, $E, Estar)
-        PC2 : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, $Ao, $E, Estar)
+        PC2 : photoEA(gam2, k3, k4, P2, P2s, P2o, Br, $Bo, Br, $Bo, $E, Estar)
+        D1  : DCR_E(kcr, kcrb, Ar, $Ao, Cr, $Co, $E, Estar)
+        B   : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
+    end
+    
+    model two_p_5c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
+        PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, $Ao, $E, Estar)
+        PC2 : photoEA(gam2, k3, k4, P2, P2s, P2o, Br, $Bo, Br, $Bo, $E, Estar)
+        Aox : Ar + Do        -> $Ao + $Dr       ; k3 * Ar * Do
         D1  : DCR_E(kcr, kcrb, Ar, $Ao, Cr, $Co, $E, Estar)
         B   : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
     end
     
     model two_p_6a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
         species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
-        PC1 : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, $Ao, $E, Estar)
-        PC2 : photoEA(gam2, k1, k2, P2, P2s, P2o, $Dr, Do, Ar, $Ao, $E, Estar)
+        PC1 : photoEA(gam1, k1, k2, P1, P1s, P1o, Ar, $Ao, Ar, $Ao, $E, Estar)
+        PC2 : photoEA(gam2, k3, k4, P2, P2s, P2o, Br, $Bo, Br, $Bo, $E, Estar)
+        D1  : DCR_E(kcr, kcrb, $Dr, Do, Cr, $Co, $E, Estar)
+        B   : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
+    end
+    
+    model two_p_7a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
+        PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Cr, $Co, $E, Estar)
+        PC2 : photo(gam2, k3, k4, P2, P2s, P2o, $Dr, Do, Ar, $Ao, $E, Estar)
+        D1  : DCR_E(kcr, kcrb, Ar, $Ao, Cr, $Co, $E, Estar)
+        B   : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
+    end
+    
+    model two_p_8a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
+        PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Cr, $Co, $E, Estar)
+        PC2 : photoEA(gam2, k3, k4, P2, P2s, P2o, $Dr, Do, Ar, $Ao, $E, Estar)
+        D1  : DCR_E(kcr, kcrb, Ar, $Ao, Cr, $Co, $E, Estar)
+        B   : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
+    end
+    
+    model two_p_9a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
+        PC1 : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Cr, $Co, $E, Estar)
+        PC2 : photo(gam2, k3, k4, P2, P2s, P2o, $Dr, Do, Ar, $Ao, $E, Estar)
+        D1  : DCR_E(kcr, kcrb, Ar, $Ao, Cr, $Co, $E, Estar)
+        B   : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
+    end
+    
+    model two_p_10a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo;
+        PC1 : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Cr, $Co, $E, Estar)
+        PC2 : photoEA(gam2, k3, k4, P2, P2s, P2o, $Dr, Do, Ar, $Ao, $E, Estar)
         D1  : DCR_E(kcr, kcrb, Ar, $Ao, Cr, $Co, $E, Estar)
         B   : bg(kr, kb, km, kd, kn, $Dr, Do, Cr, $Co, $E, Estar, Cstore)
     end
@@ -663,6 +759,8 @@ def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
         kcrb  = {sim_params["k_cr_back"]}
         A: {scheme_to_call}(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
         // Species initializations:
+        var species A.P1, A.P1s, A.P1o, A.P2, A.P2s, A.P2o, A.Cr, A.Cstore, A.Ar, A.Br, A.Do, A.Estar;
+        const species A.Co, A.Ao, A.Bo, A.Dr, A.E;
         A.P1 = 1;    A.P1s = 0; A.P1o = 0;
         A.P2 = 1;    A.P2s = 0; A.P2o = 0;
         A.Cr = 0;    A.Co = 1;  A.Cstore = 0;
