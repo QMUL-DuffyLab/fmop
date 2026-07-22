@@ -294,7 +294,7 @@ params = {
 
 simulation_params = {
     "light"         : "switch",
-    "intensity"     : "high",
+    "intensity"     : "low",
     "maintenance_C" : False,
     "k_resp"        : 1,
     "k_resp_back"   : 1,
@@ -435,22 +435,12 @@ def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
         bw: $Dr + $Co + {sc_p["resp_stoi"]} Estar -> Do + Cr + {sc_p["resp_stoi"]} $E; kb*(Estar^{sc_p["resp_stoi"]});
     end
 
-    model maintenance(km, E, Estar, Cr)
-        species E, Estar, Cr
-        Estar -> $E; km * Estar {maint_str}
-    end
-
-    model storage(kd, kn, Cr, Cstore)
-        species Cr, Cstore
-        fw : Cr  -> $Co ; kd * Cr
-        // bw : $Co -> Cr  ; kn
-    end
-
     model bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore)
         species Do, Dr, Co, Cr, E, Estar, Cstore
-        M     : maintenance(km, $E, Estar, Cr);
-        R     : respiration(kr, kb, Do, $Dr, $Co, Cr, $E, Estar)
-        S     : storage(kd, kn, Cr, Cstore)
+        Resp   : respiration(kr, kb, Do, $Dr, $Co, Cr, $E, Estar)
+        Edrain : Estar -> $E  ; km * Estar {maint_str}
+        Cdrain : Cr    -> $Co ; kd * Cr
+        Ddrain : Do    -> $Dr ; kn * Do
     end
     
     // reversible dark carbon reduction with no energy production
@@ -889,5 +879,5 @@ def loop_over_all(scheme_set):
     return df
 
 if __name__ == "__main__":
-    scheme_set = "two_photon_uncoupled"
+    scheme_set = "one_photon"
     df = loop_over_all(scheme_set)
