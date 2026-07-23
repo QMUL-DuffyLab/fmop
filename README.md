@@ -11,21 +11,17 @@ They also provide a notebook-style frontend; I haven't used that but have includ
 
 ## Comments
 
-The code itself is pretty short and hopefully self-explanatory, at least so far.
-Tellurium uses the [antimony](https://github.com/sys-bio/antimony/) specification language and I've defined our photosynthetic schemes using that.
-It's all one long python f-string that inserts the values of various parameters like reaction rates and stoichiometries as it goes; this might not be the most elegant way of doing things really, and we might not even need the flexibility of defining the parameters this way, but it works.
+This repo actually contains two different but related python scripts which deal with a set of possible schemes for oxygenic photosynthesis (in `schemes.py`) and another separate script which considers the effect of input wavelength on a very simple cyclic photosystem (`limits.py`). Both are set up to just press play in the tellurium version of spyder that's provided, basically. lazy but effective enough.
 
-The big string is organised into four main blocks: first are a few functions which I've defined to allow for different light input scenarios.
+The code itself is hopefully self-explanatory, at least so far.
+Tellurium uses the [antimony](https://github.com/sys-bio/antimony/) specification language and I've defined the various photosynthetic schemes using that.
+Both scripts use long python f-strings that insert the values of various parameters like reaction rates and stoichiometries as it goes; this might not be the most elegant way of doing things really, and we might not even need the flexibility of defining the parameters this way, but it works.
+
+The big string in `schemes.py` is organised into four main blocks: first are a few functions which I've defined to allow for different light input scenarios.
 Currently there are periodic (day/night cycle), switch (light is on at t = 0 and switches off at some time t > 0 that we can set), or constant illumination options.
 These are set by the `params["light"]` dict member, which you can set, it will build the required function call and insert it into the model for you.
 Secondly there are a few little models which I guess you can think of as submodels: certain components that are reused between schemes, like a maintenance reaction that consumes units of stored chemical energy, respiration which uses reduced carbon to produce units of chemical energy, etc.
-These are defined first, with a comment block before them explaining how they're defined.
+These are defined first.
 Then there are the schemes themselves, again with a comment block explaining how they work.
 They contain the photochemical reactions and then call the submodels to complete the chemical reaction network.
 Finally there's a section that sets all the variables and initialises the concentrations of all the possible species; the line `A: scheme_{scheme}(...)` is where your chosen scheme is inserted.
-
-## TO DO
-
-- [ ] set up loop functions to return dataframes and make a multi-index one for loop_over_all
-- [ ] change light switching, intensity and Cr dependence to function arguments rather than dict keys
-- [ ] Settle on where the `run()` wrapper abstraction should end - should it include the plots? Do the plots and return the filenames? What's the intended workflow here
