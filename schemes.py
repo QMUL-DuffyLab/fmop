@@ -21,6 +21,8 @@ out why. i will maybe fix this at some point.
 """
 
 import os
+import pathlib
+import zipfile
 import tellurium as te
 import numpy as np
 import pandas as pd
@@ -29,9 +31,16 @@ from scipy.constants import h, c, e, Boltzmann
 import light
 import utils
 
-tmax = 10000
+tmax = 1000
 cycles = 10 # only relevant if day/night cycle is turned on
 period = tmax // cycles
+# print out the intermediate python f-string as a file. useful for debugging
+write_fstr = False
+# write out the final antimony model as a file. also for debugging
+write_antimony = False
+# make a time-series plot of quantities to check convergence
+# if not using steady state methods
+make_time_series_plots = False
 
 dg_p = utils.dg_co2 - utils.dg_h2o
 
@@ -416,7 +425,7 @@ def make_outdir(basedir, scheme_set):
                 f"{scheme_set}",
                 f"maintenance_Cred_{simulation_params['maintenance_C']}",
                 f"{simulation_params['intensity']}_intensity")
-    if scheme_set == "two_photon_coupled":
+    if scheme_set == "coupled":
         output_dir = os.path.join(output_dir, f"phi_{simulation_params['phi_lin_cyc']}")
     os.makedirs(output_dir, exist_ok=True)
     return output_dir
@@ -987,14 +996,20 @@ def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
         //A.Br + A.Bo = 1;
     end
     """
-    r_file = os.path.join(output_dir,
+    output_files = []
+    if write_fstr:
+        r_file = os.path.join(output_dir,
                           f"{out_pref}_scheme_{scheme}_fstr.txt")
-    with open(r_file, "w") as f:
-        f.write(antstr)
+        output_files.append(r_file)
+        with open(r_file, "w") as f:
+            f.write(antstr)
     r = te.loada(antstr)
-    r_file = os.path.join(output_dir,
+    
+    if write_antimony:
+        r_file = os.path.join(output_dir,
                           f"{out_pref}_scheme_{scheme}_antimony.txt")
-    r.exportToAntimony(r_file)
+        output_files.append(r_file)
+        r.exportToAntimony(r_file)
     result = r.simulate(0, cycles*period, cycles*period + 1)
     df_file = os.path.join(output_dir, f"{out_pref}_scheme_{scheme}.csv")
     # results is a roadrunner.NamedArray not a structured numpy array
@@ -1002,8 +1017,9 @@ def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
     # (check dir(object) to look at all the methods! useful)
     df = pd.DataFrame(result, columns=result.colnames)
     df.to_csv(df_file)
+    output_files.append(df_file)
 
-    return r, result, df, out_pref, output_dir
+    return r, result, df, out_pref, output_files
 
 def df_plot(df, output_file):
     '''
@@ -1028,6 +1044,8 @@ def loop(constant, scheme_set):
     and run the simulations, returning a dataframe of steady state results
     '''
     scheme_params = params[scheme_set]
+    output_dir = make_outdir(utils.base_dir, scheme_set)
+    output_files = []
     if constant in light.phz_stars['Tstar']:
         loop_var = scheme_params.keys()
         loop_str = "scheme"
@@ -1040,11 +1058,12 @@ def loop(constant, scheme_set):
     for ii, vv in enumerate(loop_var):
         try:
             if loop_str == "Tstar":
-                r, result, df, out_pref, output_dir = run(constant, vv,
+                r, result, df, out_pref, ofs = run(constant, vv,
                                                         scheme_set)
             elif loop_str == "scheme":
-                r, result, df, out_pref, output_dir = run(vv, constant,
+                r, result, df, out_pref, ofs = run(vv, constant,
                                                         scheme_set)
+            output_files.extend(ofs)
         except RuntimeError:
             print("Runtime error in r.simulate() for {constant}, {vv}")
             continue
@@ -1069,19 +1088,22 @@ def loop(constant, scheme_set):
             output_file = os.path.join(output_dir,
                     f"scheme_{constant}_steady_state.csv")
         plt.show()
+        output_files.append(plot_file)
         fig.savefig(plot_file)
         plt.close()
     idx_s = pd.Index(scheme_params.keys(), name="scheme")
     df = pd.DataFrame(data, columns = columns, index = idx_s)
     df.to_csv(output_file)
     df_plot(df, output_file)
-    return df
+    return df, output_files
 
 def loop_over_all(scheme_set):
     scheme_params = params[scheme_set]
     aa = {}
+    output_files = []
     for Tstar in light.phz_stars['Tstar']:
-        aa[Tstar] = loop(Tstar, scheme_set)
+        aa[Tstar], ofs = loop(Tstar, scheme_set)
+        output_files.extend(ofs)
     df = pd.concat(aa, names=['Tstar', 'scheme'])
     idx_s = pd.Index(scheme_params.keys(), name="scheme")
     idx_t = pd.Index(light.phz_stars['Tstar'], name="Tstar")
@@ -1090,6 +1112,17 @@ def loop_over_all(scheme_set):
     output_dir = make_outdir(utils.base_dir, scheme_set)
     output_file = os.path.join(output_dir, "all_steady_state.csv")
     df.to_csv(output_file)
+    
+    # zip up other output files
+    zipfilename = os.path.join(output_dir, "other_files.zip")
+    with zipfile.ZipFile(zipfilename, mode="w",
+            compression=zipfile.ZIP_BZIP2) as archive:
+        for filename in output_files:
+            if os.path.isfile(filename):
+                archive.write(filename, arcname = os.path.basename(filename))
+    # delete the original files to save space
+    for filename in output_files:
+        pathlib.Path.unlink(filename, missing_ok = True)
     # plot - this is ugly but whatever
     fig, axes = plt.subplots(ncols=len(cols_to_plot),
                              figsize=((10*len(cols_to_plot), 8)))
