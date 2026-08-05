@@ -19,9 +19,9 @@ import light
 import utils
 
 gammas = np.linspace(*utils.xlim, utils.nx, dtype=int)
-output_dir = os.path.join("out", "limits")
+basedir = os.path.join("out", "limits")
 
-def gap_calc(dg_gamma, e_donor=utils.dg_h2o,
+def gap_calc(dg_gamma, n_discrete=True, e_donor=utils.dg_h2o,
         e_acceptor=utils.dg_co2, n_steps=3, temperature=273):
     '''
     for given incident light wavelength (in nm), base_rate (s^{-1}), 
@@ -36,7 +36,10 @@ def gap_calc(dg_gamma, e_donor=utils.dg_h2o,
     gap_ev        = dg_ev / n_steps # photon energy split into n_steps
     gap_kt        = gap_ev / kte # energy gap per step in units of kT
     reduction_gap = e_acceptor - (e_donor + gap_ev) # uphill gap for CR
-    n             = np.ceil(reduction_gap / gap_ev)
+    if n_discrete:
+        n         = np.ceil(reduction_gap / gap_ev)
+    else:
+        n         = reduction_gap / gap_ev
     return gap_kt, n, reduction_gap / kte
 
 def construct_model(gap_kt, n_estar, red_gap_kt, base_rates):
@@ -154,9 +157,15 @@ def plot_df(df):
     
     
 if __name__ == "__main__":
-    do_calc = False
+    n_discrete = False
+    if n_discrete:
+        ndir = "discrete"
+    else:
+        ndir = "continuous"
+        
+    do_calc = True
     if do_calc:
-        ns    = np.zeros(utils.nx, dtype=int)
+        ns    = np.zeros(utils.nx, dtype=float)
         gaps  = np.zeros(utils.nx, dtype=float)
         rgkt  = np.zeros_like(gaps)
         rates = np.zeros_like(gaps)
@@ -164,9 +173,11 @@ if __name__ == "__main__":
         estar_ss = np.zeros_like(gaps)
         base_rate = 1.
         n_gap = 1.0
+        output_dir = os.path.join(basedir, ndir)
         os.makedirs(output_dir, exist_ok=True)
         for ii, gg in enumerate(gammas):
-            gaps[ii], ns[ii], rgkt[ii] = gap_calc(gg)
+            gaps[ii], ns[ii], rgkt[ii] = gap_calc(gg, n_discrete)
+            print(gg, gaps[ii], ns[ii], rgkt[ii])
             rates[ii] = base_rate * np.exp(-n_gap * gaps[ii])
             r, rr = construct_model(gaps[ii], ns[ii], rgkt[ii], utils.base_rates)
             '''
