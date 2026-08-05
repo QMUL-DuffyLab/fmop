@@ -399,7 +399,7 @@ simulation_params = {
     "k_maintenance" : 1,
     "k_cr"          : 1,
     "k_cr_back"     : 1,
-    "phi_lin_cyc"   : 0.5,
+    "phi_lin_cyc"   : 0.1,
 }
 
 # for plotting steady state values
@@ -1104,7 +1104,7 @@ def loop_over_all(scheme_set):
         axes[0].set_ylabel("value at light off")
     title = f"{scheme_set} schemes, {simulation_params['intensity']} intensity"
     if scheme_set == "coupled":
-        title += r'$ \phi $ = ' + f"{simulation_params['phi_lin_cyc']}"
+        title += r', $ \phi $ = ' + f"{simulation_params['phi_lin_cyc']}"
     plt.suptitle(title)
     fig.savefig(os.path.splitext(output_file)[0] + ".pdf")
     plt.show()
