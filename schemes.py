@@ -35,9 +35,9 @@ tmax = 1000
 cycles = 10 # only relevant if day/night cycle is turned on
 period = tmax // cycles
 # print out the intermediate python f-string as a file. useful for debugging
-write_fstr = False
+write_fstr = True
 # write out the final antimony model as a file. also for debugging
-write_antimony = False
+write_antimony = True
 # make a time-series plot of quantities to check convergence
 # if not using steady state methods
 make_time_series_plots = False
@@ -62,340 +62,485 @@ must have two members
 '''
 params = {
     "one-photon": {# reddest usable wavelength of light
-    "1a" : { 
-        'scheme_to_call': "one_p_1a",
-        'deltaG_gamma': [utils.ev_nm(611.0), np.nan],
-        'resp_stoi': 5,
-        'dcr_stoi': 0, # not used for scheme 1
-        },
-    "1b" : { 
-        'scheme_to_call': "one_p_1b",
-        'deltaG_gamma': [utils.ev_nm(541.0), np.nan],
-        'resp_stoi': 5,
-        'dcr_stoi': 0,
-        },
-    "1c" : { 
-        'scheme_to_call': "one_p_1c",
-        'deltaG_gamma': [utils.ev_nm(541.0), np.nan],
-        'resp_stoi': 5,
-        'dcr_stoi': 0,
-        },
-    "2a" : { 
-        'scheme_to_call': "one_p_2a",
-        'deltaG_gamma': [utils.ev_nm(611.0), np.nan],
-        'resp_stoi': 5,
-        'dcr_stoi': 1,
-        },
-    "2b" : { 
-        'scheme_to_call': "one_p_2b",
-        'deltaG_gamma': [utils.ev_nm(541.0), np.nan],
-        'resp_stoi': 5,
-        'dcr_stoi': 1,
-        },
-    "2c" : { 
-        'scheme_to_call': "one_p_2c",
-        'deltaG_gamma': [utils.ev_nm(541.0), np.nan],
-        'resp_stoi': 5,
-        'dcr_stoi': 1,
-        },
-    "3a" : { 
-        'scheme_to_call': "one_p_3a",
-        'deltaG_gamma': [utils.ev_nm(700.0), np.nan],
-        'resp_stoi': 5,
-        'dcr_stoi': 1,
-        },
-    "3b" : { 
-        'scheme_to_call': "one_p_3b",
-        'deltaG_gamma': [utils.ev_nm(611.0), np.nan],
-        'resp_stoi': 5,
-        'dcr_stoi': 1,
-        },
-    "3c" : { 
-        'scheme_to_call': "one_p_3c",
-        'deltaG_gamma': [utils.ev_nm(611.0), np.nan],
-        'resp_stoi': 5,
-        'dcr_stoi': 1,
-        },
-    "4a"  : { 
-        'scheme_to_call': "one_p_3a",
-        'deltaG_gamma': [utils.ev_nm(1192.0), np.nan],
-        'resp_stoi': 5,
-        'dcr_stoi': 4,
-        },
-    "4b"  : { 
-        'scheme_to_call': "one_p_3b",
-        'deltaG_gamma': [utils.ev_nm(954.0), np.nan],
-        'resp_stoi': 5,
-        'dcr_stoi': 4,
-        },
-    "4c"  : { 
-        'scheme_to_call': "one_p_3c",
-        'deltaG_gamma': [utils.ev_nm(954.0), np.nan],
-        'resp_stoi': 5,
-        'dcr_stoi': 4,
-        },
-    "4d"  : { 
-        'scheme_to_call': "one_p_4d",
-        'deltaG_gamma': [utils.ev_nm(954.0), np.nan],
-        'resp_stoi': 5,
-        'dcr_stoi': 4,
-        },
-    "4e"  : { 
-        'scheme_to_call': "one_p_4e",
-        'deltaG_gamma': [utils.ev_nm(954.0), np.nan],
-        'resp_stoi': 5,
-        'dcr_stoi': 4,
-        },
-    "5a"  : { 
-        'scheme_to_call': "one_p_5a",
-        'deltaG_gamma': [utils.ev_nm(1192.0), np.nan],
-        'resp_stoi': 5,
-        'dcr_stoi': 0,
-        },
-    "5b"  : { 
-        'scheme_to_call': "one_p_5b",
-        'deltaG_gamma': [utils.ev_nm(1192.0), np.nan],
-        'resp_stoi': 5,
-        'dcr_stoi': 0,
-        },
-    "5c"  : { 
-        'scheme_to_call': "one_p_5c",
-        'deltaG_gamma': [utils.ev_nm(1192.0), np.nan],
-        'resp_stoi': 5,
-        'dcr_stoi': 5,
-        },
-    "5d"  : { 
-        'scheme_to_call': "one_p_5d",
-        'deltaG_gamma': [utils.ev_nm(1192.0), np.nan],
-        'resp_stoi': 5,
-        'dcr_stoi': 5,
-        },
+        "1a" : { 
+            'scheme_to_call': "one_p_1a",
+            'deltaG_gamma': [utils.ev_nm(611.0), np.nan],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 0, # not used for scheme 1
+            },
+        "1b" : { 
+            'scheme_to_call': "one_p_1b",
+            'deltaG_gamma': [utils.ev_nm(541.0), np.nan],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 0,
+            },
+        "1c" : { 
+            'scheme_to_call': "one_p_1c",
+            'deltaG_gamma': [utils.ev_nm(541.0), np.nan],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 0,
+            },
+        "2a" : { 
+            'scheme_to_call': "one_p_2a",
+            'deltaG_gamma': [utils.ev_nm(611.0), np.nan],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 1,
+            },
+        "2b" : { 
+            'scheme_to_call': "one_p_2b",
+            'deltaG_gamma': [utils.ev_nm(541.0), np.nan],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 1,
+            },
+        "2c" : { 
+            'scheme_to_call': "one_p_2c",
+            'deltaG_gamma': [utils.ev_nm(541.0), np.nan],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 1,
+            },
+        "3a" : { 
+            'scheme_to_call': "one_p_3a",
+            'deltaG_gamma': [utils.ev_nm(700.0), np.nan],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 1,
+            },
+        "3b" : { 
+            'scheme_to_call': "one_p_3b",
+            'deltaG_gamma': [utils.ev_nm(611.0), np.nan],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 1,
+            },
+        "3c" : { 
+            'scheme_to_call': "one_p_3c",
+            'deltaG_gamma': [utils.ev_nm(611.0), np.nan],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 1,
+            },
+        "4a"  : { 
+            'scheme_to_call': "one_p_3a",
+            'deltaG_gamma': [utils.ev_nm(1192.0), np.nan],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 4,
+            },
+        "4b"  : { 
+            'scheme_to_call': "one_p_3b",
+            'deltaG_gamma': [utils.ev_nm(954.0), np.nan],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 4,
+            },
+        "4c"  : { 
+            'scheme_to_call': "one_p_3c",
+            'deltaG_gamma': [utils.ev_nm(954.0), np.nan],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 4,
+            },
+        "4d"  : { 
+            'scheme_to_call': "one_p_4d",
+            'deltaG_gamma': [utils.ev_nm(954.0), np.nan],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 4,
+            },
+        "4e"  : { 
+            'scheme_to_call': "one_p_4e",
+            'deltaG_gamma': [utils.ev_nm(954.0), np.nan],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 4,
+            },
+        "5a"  : { 
+            'scheme_to_call': "one_p_5a",
+            'deltaG_gamma': [utils.ev_nm(1192.0), np.nan],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 0,
+            },
+        "5b"  : { 
+            'scheme_to_call': "one_p_5b",
+            'deltaG_gamma': [utils.ev_nm(1192.0), np.nan],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 0,
+            },
+        "5c"  : { 
+            'scheme_to_call': "one_p_5c",
+            'deltaG_gamma': [utils.ev_nm(1192.0), np.nan],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 5,
+            },
+        "5d"  : { 
+            'scheme_to_call': "one_p_5d",
+            'deltaG_gamma': [utils.ev_nm(1192.0), np.nan],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 5,
+            },
     },
     "uncoupled": {
-    "1a" : { 
-        'scheme_to_call': "two_p_1a",
-        'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(611.0)],
-        'resp_stoi': 5,
-        'dcr_stoi': 0, # not used for scheme 1
-        },
-    "1b" : { 
-        'scheme_to_call': "two_p_1b",
-        'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(541.0)],
-        'resp_stoi': 5,
-        'dcr_stoi': 0, # not used for scheme 1
-        },
-    "1c" : { 
-        'scheme_to_call': "two_p_1c",
-        'deltaG_gamma': [utils.ev_nm(541.0), utils.ev_nm(541.0)],
-        'resp_stoi': 5,
-        'dcr_stoi': 0, # not used for scheme 1
-        },
-    "2a" : { 
-        'scheme_to_call': "two_p_2a",
-        'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(611.0)],
-        'resp_stoi': 5,
-        'dcr_stoi': 0, # not used for scheme 1
-        },
-    "2b" : { 
-        'scheme_to_call': "two_p_2b",
-        'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(611.0)],
-        'resp_stoi': 5,
-        'dcr_stoi': 0, # not used for scheme 1
-        },
-    "2c" : { 
-        'scheme_to_call': "two_p_2c",
-        'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(541.0)],
-        'resp_stoi': 5,
-        'dcr_stoi': 0, # not used for scheme 1
-        },
-    "2d" : { 
-        'scheme_to_call': "two_p_2d",
-        'deltaG_gamma': [utils.ev_nm(541.0), utils.ev_nm(541.0)],
-        'resp_stoi': 5,
-        'dcr_stoi': 0, # not used for scheme 1
-        },
-    "3a" : { 
-        'scheme_to_call': "one_p_3a",
-        'deltaG_gamma': [utils.ev_nm(700.0), utils.ev_nm(700.0)],
-        'resp_stoi': 5,
-        'dcr_stoi': 1,
-        },
-    "4a" : { 
-        'scheme_to_call': "one_p_3a",
-        'deltaG_gamma': [utils.ev_nm(1192.0), utils.ev_nm(1192.0)],
-        'resp_stoi': 5,
-        'dcr_stoi': 4,
-        },    
-    "5a" : { 
-        'scheme_to_call': "two_p_5a",
-        'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(1192.0)],
-        'resp_stoi': 5,
-        'dcr_stoi': 0,
-        },
-    "5b" : { 
-        'scheme_to_call': "two_p_5b",
-        'deltaG_gamma': [utils.ev_nm(700.0), utils.ev_nm(1192.0)],
-        'resp_stoi': 5,
-        'dcr_stoi': 1,
-        },
-    "5c" : { 
-        'scheme_to_call': "two_p_5c",
-        'deltaG_gamma': [utils.ev_nm(1192.0), utils.ev_nm(1192.0)],
-        'resp_stoi': 5,
-        'dcr_stoi': 4,
-        },
-    "6a" : { 
-        'scheme_to_call': "two_p_6a",
-        'deltaG_gamma': [utils.ev_nm(1192.0), utils.ev_nm(1192.0)],
-        'resp_stoi': 5,
-        'dcr_stoi': 5,
-        },
-    "7a" : { 
-        'scheme_to_call': "two_p_7a",
-        'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(700.0)],
-        'resp_stoi': 5,
-        'dcr_stoi': 1,
-        },
-    "7b" : { 
-        'scheme_to_call': "two_p_7a",
-        'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(1192.0)],
-        'resp_stoi': 5,
-        'dcr_stoi': 4,
-        },
-    "8a" : { 
-        'scheme_to_call': "two_p_8a",
-        'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(611.0)],
-        'resp_stoi': 5,
-        'dcr_stoi': 1,
-        },
-    "8b" : { 
-        'scheme_to_call': "two_p_8a",
-        'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(954.0)],
-        'resp_stoi': 5,
-        'dcr_stoi': 4,
-        },
-    "9a" : { 
-        'scheme_to_call': "two_p_9a",
-        'deltaG_gamma': [utils.ev_nm(541.0), utils.ev_nm(700.0)],
-        'resp_stoi': 5,
-        'dcr_stoi': 1,
-        },
-    "9b" : { 
-        'scheme_to_call': "two_p_9a",
-        'deltaG_gamma': [utils.ev_nm(541.0), utils.ev_nm(1192.0)],
-        'resp_stoi': 5,
-        'dcr_stoi': 4,
-        },
-    "10a" : { 
-        'scheme_to_call': "two_p_10a",
-        'deltaG_gamma': [utils.ev_nm(541.0), utils.ev_nm(611.0)],
-        'resp_stoi': 5,
-        'dcr_stoi': 1,
-        },
-    "10b" : { 
-        'scheme_to_call': "two_p_10a",
-        'deltaG_gamma': [utils.ev_nm(541.0), utils.ev_nm(954.0)],
-        'resp_stoi': 5,
-        'dcr_stoi': 4,
-        },
+        "1a" : { 
+            'scheme_to_call': "two_p_1a",
+            'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(611.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 0, # not used for scheme 1
+            },
+        "1b" : { 
+            'scheme_to_call': "two_p_1b",
+            'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(541.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 0, # not used for scheme 1
+            },
+        "1c" : { 
+            'scheme_to_call': "two_p_1c",
+            'deltaG_gamma': [utils.ev_nm(541.0), utils.ev_nm(541.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 0, # not used for scheme 1
+            },
+        "2a" : { 
+            'scheme_to_call': "two_p_2a",
+            'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(611.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 0, # not used for scheme 1
+            },
+        "2b" : { 
+            'scheme_to_call': "two_p_2b",
+            'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(611.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 0, # not used for scheme 1
+            },
+        "2c" : { 
+            'scheme_to_call': "two_p_2c",
+            'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(541.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 0, # not used for scheme 1
+            },
+        "2d" : { 
+            'scheme_to_call': "two_p_2d",
+            'deltaG_gamma': [utils.ev_nm(541.0), utils.ev_nm(541.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 0, # not used for scheme 1
+            },
+        "3a" : { 
+            'scheme_to_call': "one_p_3a",
+            'deltaG_gamma': [utils.ev_nm(700.0), utils.ev_nm(700.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 1,
+            },
+        "4a" : { 
+            'scheme_to_call': "one_p_3a",
+            'deltaG_gamma': [utils.ev_nm(1192.0), utils.ev_nm(1192.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 4,
+            },    
+        "5a" : { 
+            'scheme_to_call': "two_p_5a",
+            'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(1192.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 0,
+            },
+        "5b" : { 
+            'scheme_to_call': "two_p_5b",
+            'deltaG_gamma': [utils.ev_nm(700.0), utils.ev_nm(1192.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 1,
+            },
+        "5c" : { 
+            'scheme_to_call': "two_p_5c",
+            'deltaG_gamma': [utils.ev_nm(1192.0), utils.ev_nm(1192.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 4,
+            },
+        "6a" : { 
+            'scheme_to_call': "two_p_6a",
+            'deltaG_gamma': [utils.ev_nm(1192.0), utils.ev_nm(1192.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 5,
+            },
+        "7a" : { 
+            'scheme_to_call': "two_p_7a",
+            'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(700.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 1,
+            },
+        "7b" : { 
+            'scheme_to_call': "two_p_7a",
+            'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(1192.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 4,
+            },
+        "8a" : { 
+            'scheme_to_call': "two_p_8a",
+            'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(611.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 1,
+            },
+        "8b" : { 
+            'scheme_to_call': "two_p_8a",
+            'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(954.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 4,
+            },
+        "9a" : { 
+            'scheme_to_call': "two_p_9a",
+            'deltaG_gamma': [utils.ev_nm(541.0), utils.ev_nm(700.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 1,
+            },
+        "9b" : { 
+            'scheme_to_call': "two_p_9a",
+            'deltaG_gamma': [utils.ev_nm(541.0), utils.ev_nm(1192.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 4,
+            },
+        "10a" : { 
+            'scheme_to_call': "two_p_10a",
+            'deltaG_gamma': [utils.ev_nm(541.0), utils.ev_nm(611.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 1,
+            },
+        "10b" : { 
+            'scheme_to_call': "two_p_10a",
+            'deltaG_gamma': [utils.ev_nm(541.0), utils.ev_nm(954.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 4,
+            },
+        "11a" : { 
+            'scheme_to_call': "two_p_11a",
+            'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(1192.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 0,
+            },
+        "11b" : { 
+            'scheme_to_call': "two_p_11b",
+            'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(1192.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 0,
+            },
+        "11c" : { 
+            'scheme_to_call': "two_p_11c",
+            'deltaG_gamma': [utils.ev_nm(541.0), utils.ev_nm(1192.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 0,
+            },
+        "11d" : { 
+            'scheme_to_call': "two_p_11d",
+            'deltaG_gamma': [utils.ev_nm(541.0), utils.ev_nm(1192.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 0,
+            },
     },
     "coupled": {
         "1a": {
             'scheme_to_call': "two_p_c_1a",
             'deltaG_gamma': [utils.ev_nm(883.0), utils.ev_nm(883.0)],
+            'split_lin_cyc': False,
             'resp_stoi': 5,
             'dcr_stoi': 0,
         },
         "1b": {
             'scheme_to_call': "two_p_c_1b",
             'deltaG_gamma': [utils.ev_nm(745.0), utils.ev_nm(883.0)],
+            'split_lin_cyc': False,
             'resp_stoi': 5,
             'dcr_stoi': 0,
         },
         "1c": {
             'scheme_to_call': "two_p_c_1c",
             'deltaG_gamma': [utils.ev_nm(883.0), utils.ev_nm(745.0)],
+            'split_lin_cyc': False,
             'resp_stoi': 5,
             'dcr_stoi': 0,
         },
         "1d": {
             'scheme_to_call': "two_p_c_1d",
             'deltaG_gamma': [utils.ev_nm(745.0), utils.ev_nm(745.0)],
+            'split_lin_cyc': False,
             'resp_stoi': 5,
             'dcr_stoi': 0,
         },
         "2a": {
             'scheme_to_call': "two_p_c_2a",
-            'deltaG_gamma': [utils.ev_nm(745.0), utils.ev_nm(883.0)],
+            'deltaG_gamma': [utils.ev_nm(883.0), utils.ev_nm(883.0)],
+            'split_lin_cyc': True,
             'resp_stoi': 5,
             'dcr_stoi': 0,
         },
         "2b": {
             'scheme_to_call': "two_p_c_2b",
-            'deltaG_gamma': [utils.ev_nm(883.0), utils.ev_nm(745.0)],
+            'deltaG_gamma': [utils.ev_nm(745.0), utils.ev_nm(883.0)],
+            'split_lin_cyc': True,
             'resp_stoi': 5,
             'dcr_stoi': 0,
         },
         "2c": {
             'scheme_to_call': "two_p_c_2c",
+            'deltaG_gamma': [utils.ev_nm(883.0), utils.ev_nm(745.0)],
+            'split_lin_cyc': True,
+            'resp_stoi': 5,
+            'dcr_stoi': 0,
+        },
+        "2d": {
+            'scheme_to_call': "two_p_c_2d",
             'deltaG_gamma': [utils.ev_nm(745.0), utils.ev_nm(745.0)],
+            'split_lin_cyc': True,
             'resp_stoi': 5,
             'dcr_stoi': 0,
         },
         "3a": {
             'scheme_to_call': "two_p_c_3a",
             'deltaG_gamma': [utils.ev_nm(973.0), utils.ev_nm(973.0)],
+            'split_lin_cyc': False,
             'resp_stoi': 5,
             'dcr_stoi': 1,
         },
         "3b": {
             'scheme_to_call': "two_p_c_3b",
             'deltaG_gamma': [utils.ev_nm(808.0), utils.ev_nm(973.0)],
+            'split_lin_cyc': False,
             'resp_stoi': 5,
             'dcr_stoi': 1,
         },
         "3c": {
             'scheme_to_call': "two_p_c_3c",
             'deltaG_gamma': [utils.ev_nm(973.0), utils.ev_nm(808.0)],
+            'split_lin_cyc': False,
             'resp_stoi': 5,
             'dcr_stoi': 1,
         },
         "3d": {
             'scheme_to_call': "two_p_c_3d",
             'deltaG_gamma': [utils.ev_nm(808.0), utils.ev_nm(808.0)],
+            'split_lin_cyc': False,
             'resp_stoi': 5,
             'dcr_stoi': 1,
         },
         "4a": {
             'scheme_to_call': "two_p_c_4a",
             'deltaG_gamma': [utils.ev_nm(973.0), utils.ev_nm(973.0)],
+            'split_lin_cyc': True,
             'resp_stoi': 5,
             'dcr_stoi': 1,
         },
         "4b": {
             'scheme_to_call': "two_p_c_4b",
             'deltaG_gamma': [utils.ev_nm(808.0), utils.ev_nm(973.0)],
+            'split_lin_cyc': True,
             'resp_stoi': 5,
             'dcr_stoi': 1,
         },
         "4c": {
             'scheme_to_call': "two_p_c_4c",
             'deltaG_gamma': [utils.ev_nm(973.0), utils.ev_nm(808.0)],
+            'split_lin_cyc': True,
             'resp_stoi': 5,
             'dcr_stoi': 1,
         },
         "4d": {
             'scheme_to_call': "two_p_c_4d",
             'deltaG_gamma': [utils.ev_nm(808.0), utils.ev_nm(808.0)],
+            'split_lin_cyc': True,
             'resp_stoi': 5,
             'dcr_stoi': 1,
+        },
+        "5a": {
+            'scheme_to_call': "two_p_c_3a",
+            'deltaG_gamma': [utils.ev_nm(1192.0), utils.ev_nm(1192.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 4,
+        },
+        "5b": {
+            'scheme_to_call': "two_p_c_3b",
+            'deltaG_gamma': [utils.ev_nm(954.0), utils.ev_nm(1192.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 4,
+        },
+        "5c": {
+            'scheme_to_call': "two_p_c_3c",
+            'deltaG_gamma': [utils.ev_nm(1192.0), utils.ev_nm(954.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 4,
+        },
+        "5d": {
+            'scheme_to_call': "two_p_c_3d",
+            'deltaG_gamma': [utils.ev_nm(954.0), utils.ev_nm(954.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 4,
+        },
+        "6a": {
+            'scheme_to_call': "two_p_c_4a",
+            'deltaG_gamma': [utils.ev_nm(1192.0), utils.ev_nm(1192.0)],
+            'split_lin_cyc': True,
+            'resp_stoi': 5,
+            'dcr_stoi': 4,
+        },
+        "6b": {
+            'scheme_to_call': "two_p_c_4b",
+            'deltaG_gamma': [utils.ev_nm(954.0), utils.ev_nm(1192.0)],
+            'split_lin_cyc': True,
+            'resp_stoi': 5,
+            'dcr_stoi': 4,
+        },
+        "6c": {
+            'scheme_to_call': "two_p_c_4c",
+            'deltaG_gamma': [utils.ev_nm(1192.0), utils.ev_nm(954.0)],
+            'split_lin_cyc': True,
+            'resp_stoi': 5,
+            'dcr_stoi': 4,
+        },
+        "6d": {
+            'scheme_to_call': "two_p_c_4d",
+            'deltaG_gamma': [utils.ev_nm(954.0), utils.ev_nm(954.0)],
+            'split_lin_cyc': True,
+            'resp_stoi': 5,
+            'dcr_stoi': 4,
         },
     }
 }
 
 simulation_params = {
     "light"         : "switch",
-    "intensity"     : "low",
+    "intensity"     : "high",
     "maintenance_C" : False,
     "k_resp"        : 1,
     "k_resp_back"   : 1,
@@ -408,17 +553,11 @@ simulation_params = {
     "k_maintenance" : 1,
     "k_cr"          : 1,
     "k_cr_back"     : 1,
-    "phi_lin_cyc"   : 0.9,
+    "phi_lin_cyc"   : 0.5,
 }
 
-# for plotting steady state values
-columns = ['C_red', 'D_ox', 'A_red', 'C_store', 'Estar']
-col_legends = [r'$ C_{\text{red}} $', r'$ D_{\text{ox}} $',
-               r'$ A_{\text{red}} $', r'$ C_{\text{store}} $',
-               r'$ E_{*} $']
-
-cols_to_plot = ['C_red', 'Estar']
-labels = [r'$ C_{\text{red}} $', r'$ E^{*} $']
+cols_to_log = ['[A_Cr]', '[A_Estar]', '[A_Do]', '[A_Ar]', '[A_Br]', '[A_Qr]']
+cols_to_plot = ['[A_Cr]', '[A_Estar]']
 
 def make_outdir(basedir, scheme_set): 
     output_dir = os.path.join(basedir,
@@ -491,6 +630,12 @@ def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
         maint_str = " * Cr"
     else:
         maint_str = ""
+
+    if sc_p['split_lin_cyc']:
+        pstr = f"A.P1 = {2 * sim_params['phi_lin_cyc']}; " +\
+        f"A.P2 = {2. * (1. - sim_params['phi_lin_cyc'])}"
+    else:
+        pstr = "A.P1 = 1; A.P2 = 1"
         
     if sim_params["intensity"] == "high":
         exc_rate *= 10
@@ -539,8 +684,8 @@ def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
         bw: $Dr + $Co + {sc_p["resp_stoi"]} Estar -> Do + Cr + {sc_p["resp_stoi"]} $E; kb*(Estar^{sc_p["resp_stoi"]});
     end
 
-    model bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
-        species Do, Dr, Co, Cr, E, Estar, Cstore
+    model bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
+        species Do, Dr, Co, Cr, E, Estar
         kar = 1
         kbr = 1
         kqr = 1
@@ -605,371 +750,391 @@ def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
     * bit of boilerplate, but I think it's a decent tradeoff. */
 
     model one_p_1a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
        PC : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Cr, $Co, $E, Estar)
-       B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+       B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
 
     model one_p_1b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
        PC : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Cr, $Co, $E, Estar)
-       B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+       B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
 
     model one_p_1c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
        PC : photoED(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Cr, $Co, $E, Estar)
-       B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+       B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
 
     model one_p_2a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
        PC : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
        D  : DCR_noE(kcr, kcrb, Ar, Ao, Cr, $Co)
-       B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+       B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
 
     model one_p_2b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
        PC : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
        D  : DCR_noE(kcr, kcrb, Ar, Ao, Cr, $Co)
-       B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+       B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
 
     model one_p_2c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
        PC : photoED(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
        D  : DCR_noE(kcr, kcrb, Ar, Ao, Cr, $Co)
-       B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+       B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
 
     model one_p_3a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
        PC : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
        D  : DCR_E(kcr, kcrb, Ar, Ao, Cr, $Co, $E, Estar)
-       B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+       B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
 
     model one_p_3b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
        PC : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
        D  : DCR_E(kcr, kcrb, Ar, Ao, Cr, $Co, $E, Estar)
-       B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+       B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
 
     model one_p_3c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
        PC : photoED(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
        D  : DCR_E(kcr, kcrb, Ar, Ao, Cr, $Co, $E, Estar)
-       B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+       B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
     
     model one_p_4d(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
        PC  : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
-       Aox : Ar + Do        -> Ao + $Dr       ; k3 * Ar * Do
        D   : DCR_E(kcr, kcrb, Ar, Ao, Cr, $Co, $E, Estar)
-       B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+       B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
     
     model one_p_4e(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+       species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
        PC  : photoED(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
-       Aox : Ar + Do        -> Ao + $Dr       ; k3 * Ar * Do
        D   : DCR_E(kcr, kcrb, Ar, Ao, Cr, $Co, $E, Estar)
-       B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+       B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
     
     model one_p_5a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;  
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;  
         PC : photo(gam1, k1, k2, P1, P1s, P1o, Ar, Ao, Ar, Ao, $E, Estar)
-        B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
     
     model one_p_5b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC : photoED(gam1, k1, k2, P1, P1s, P1o, Ar, Ao, Ar, Ao, $E, Estar)
-        B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
     
     model one_p_5c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC : photoEA(gam1, k1, k2, P1, P1s, P1o, Ar, Ao, Ar, Ao, $E, Estar)
         D  : DCR_E(kcr, kcrb, $Dr, Do, Cr, $Co, $E, Estar)
-        B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
     
     model one_p_5d(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC : photoED(gam1, k1, k2, P1, P1s, P1o, Ar, Ao, Ar, Ao, $E, Estar)
         D  : DCR_E(kcr, kcrb, $Dr, Do, Cr, $Co, $E, Estar)
-        B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
     
     model two_p_1a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Cr, $Co, $E, Estar)
         PC2 : photo(gam2, k3, k4, P2, P2s, P2o, $Dr, Do, Cr, $Co, $E, Estar)
-        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
         
     model two_p_1b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Cr, $Co, $E, Estar)
         PC2 : photoEA(gam2, k3, k4, P2, P2s, P2o, $Dr, Do, Cr, $Co, $E, Estar)
-        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
     
     model two_p_1c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1 : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Cr, $Co, $E, Estar)
         PC2 : photoEA(gam2, k3, k4, P2, P2s, P2o, $Dr, Do, Cr, $Co, $E, Estar)
-        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
         
     model two_p_2a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
         PC2 : photo(gam2, k3, k4, P2, P2s, P2o, $Dr, Do, Ar, Ao, $E, Estar)
         D   : DCR_noE(kcr, kcrb, Ar, Ao, Cr, $Co)
-        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
     
     model two_p_2b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
         PC2 : photo(gam2, k3, k4, P2, P2s, P2o, $Dr, Do, Br, $Bo, $E, Estar)
         D1  : DCR_noE(kcr, kcrb, Ar, Ao, Cr, $Co)
         D2  : DCR_noE(kcr, kcrb, Br, $Bo, Cr, $Co)
-        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
     
     model two_p_2c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
         PC2 : photoEA(gam2, k3, k4, P2, P2s, P2o, $Dr, Do, Ar, Ao, $E, Estar)
         D1  : DCR_noE(kcr, kcrb, Ar, Ao, Cr, $Co)
-        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
        
     model two_p_2d(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1 : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
         PC2 : photoEA(gam2, k3, k4, P2, P2s, P2o, $Dr, Do, Ar, Ao, $E, Estar)
         D1  : DCR_noE(kcr, kcrb, Ar, Ao, Cr, $Co)
-        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
     
     model two_p_3a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
         PC2 : photo(gam2, k3, k4, P2, P2s, P2o, $Dr, Do, Ar, Ao, $E, Estar)
         Aox : Ar + Do        -> Ao + $Dr       ; k3 * Ar * Do
         D1  : DCR_E(kcr, kcrb, Ar, Ao, Cr, $Co, $E, Estar)
-        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
     
     model two_p_5a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
         PC2 : photoEA(gam2, k3, k4, P2, P2s, P2o, Br, $Bo, Br, $Bo, $E, Estar)
         D1  : DCR_noE(kcr, kcrb, Ar, Ao, Cr, $Co)
-        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
     
     model two_p_5b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
         PC2 : photoEA(gam2, k3, k4, P2, P2s, P2o, Br, $Bo, Br, $Bo, $E, Estar)
         D1  : DCR_E(kcr, kcrb, Ar, Ao, Cr, $Co, $E, Estar)
-        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
     
     model two_p_5c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
         PC2 : photoEA(gam2, k3, k4, P2, P2s, P2o, Br, $Bo, Br, $Bo, $E, Estar)
         Aox : Ar + Do        -> Ao + $Dr       ; k3 * Ar * Do
         D1  : DCR_E(kcr, kcrb, Ar, Ao, Cr, $Co, $E, Estar)
-        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
     
     model two_p_6a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1 : photoEA(gam1, k1, k2, P1, P1s, P1o, Ar, Ao, Ar, Ao, $E, Estar)
         PC2 : photoEA(gam2, k3, k4, P2, P2s, P2o, Br, $Bo, Br, $Bo, $E, Estar)
         D1  : DCR_E(kcr, kcrb, $Dr, Do, Cr, $Co, $E, Estar)
-        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
     
     model two_p_7a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Cr, $Co, $E, Estar)
         PC2 : photo(gam2, k3, k4, P2, P2s, P2o, $Dr, Do, Ar, Ao, $E, Estar)
         D1  : DCR_E(kcr, kcrb, Ar, Ao, Cr, $Co, $E, Estar)
-        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
     
     model two_p_8a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Cr, $Co, $E, Estar)
         PC2 : photoEA(gam2, k3, k4, P2, P2s, P2o, $Dr, Do, Ar, Ao, $E, Estar)
         D1  : DCR_E(kcr, kcrb, Ar, Ao, Cr, $Co, $E, Estar)
-        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
     
     model two_p_9a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1 : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Cr, $Co, $E, Estar)
         PC2 : photo(gam2, k3, k4, P2, P2s, P2o, $Dr, Do, Ar, Ao, $E, Estar)
         D1  : DCR_E(kcr, kcrb, Ar, Ao, Cr, $Co, $E, Estar)
-        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
     
     model two_p_10a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1 : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Cr, $Co, $E, Estar)
         PC2 : photoEA(gam2, k3, k4, P2, P2s, P2o, $Dr, Do, Ar, Ao, $E, Estar)
         D1  : DCR_E(kcr, kcrb, Ar, Ao, Cr, $Co, $E, Estar)
-        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
+    end
+        
+    model two_p_11a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Cr, $Co, $E, Estar)
+        PC2 : photoEA(gam2, k3, k4, P2, P2s, P2o, Ar, Ao, Ar, Ao, $E, Estar)
+        D1  : DCR_E(kcr, kcrb, Ar, Ao, Cr, $Co, $E, Estar)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
+    end
+            
+    model two_p_11b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Cr, $Co, $E, Estar)
+        PC2 : photoEA(gam2, k3, k4, P2, P2s, P2o, Ar, Ao, Ar, Ao, $E, Estar)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
+    end
+            
+    model two_p_11c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        PC1 : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Cr, $Co, $E, Estar)
+        PC2 : photoEA(gam2, k3, k4, P2, P2s, P2o, Ar, Ao, Ar, Ao, $E, Estar)
+        D1  : DCR_E(kcr, kcrb, Ar, Ao, Cr, $Co, $E, Estar)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
+    end
+            
+    model two_p_11d(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        PC1 : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Cr, $Co, $E, Estar)
+        PC2 : photoEA(gam2, k3, k4, P2, P2s, P2o, Ar, Ao, Ar, Ao, $E, Estar)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
     
     model two_p_c_1a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
         PC2 : photo(gam2, k3, k4, P2, P2s, P2o, Ar, Ao, Cr, $Co, $E, Estar)
-        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
     
     model two_p_c_1b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1 : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
         PC2 : photo(gam2, k3, k4, P2, P2s, P2o, Ar, Ao, Cr, $Co, $E, Estar)
-        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
         
     model two_p_c_1c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
         PC2 : photoEA(gam2, k3, k4, P2, P2s, P2o, Ar, Ao, Cr, $Co, $E, Estar)
-        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
         
     model two_p_c_1d(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1 : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
         PC2 : photoEA(gam2, k3, k4, P2, P2s, P2o, Ar, Ao, Cr, $Co, $E, Estar)
-        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
-         
+                
     model two_p_c_2a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
-        gam2_lin := gam2 * {sim_params['phi_lin_cyc']}
-        gam2_cyc := gam2 * {1.0 - sim_params['phi_lin_cyc']}
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        PC1  : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
+        PC2l : photo(gam2, k3, k4, P2, P2s, P2o, Ar, Ao, Cr, $Co, $E, Estar)
+        PC2c : photoEA(gam2, k3, k4, P2, P2s, P2o, Br, Bo, Br, Bo, $E, Estar)
+        B    : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
+    end
+    
+    model two_p_c_2b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1  : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
-        PC2l : photo(gam2_lin, k3, k4, P2, P2s, P2o, Ar, Ao, Cr, $Co, $E, Estar)
-        PC2c : photoEA(gam2_cyc, k3, k4, P2, P2s, P2o, Br, Bo, Br, Bo, $E, Estar)
-        B    : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        PC2l : photo(gam2, k3, k4, P2, P2s, P2o, Ar, Ao, Cr, $Co, $E, Estar)
+        PC2c : photoEA(gam2, k3, k4, P2, P2s, P2o, Br, Bo, Br, Bo, $E, Estar)
+        B    : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
              
-    model two_p_c_2b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
-        gam2_lin := gam2 * {sim_params['phi_lin_cyc']}
-        gam2_cyc := gam2 * {1.0 - sim_params['phi_lin_cyc']}
+    model two_p_c_2c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1  : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
-        PC2l : photoEA(gam2_lin, k3, k4, P2, P2s, P2o, Ar, Ao, Cr, $Co, $E, Estar)
-        PC2c : photoEA(gam2_cyc, k3, k4, P2, P2s, P2o, Br, Bo, Br, Bo, $E, Estar)
-        B    : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        PC2l : photoEA(gam2, k3, k4, P2, P2s, P2o, Ar, Ao, Cr, $Co, $E, Estar)
+        PC2c : photoEA(gam2, k3, k4, P2, P2s, P2o, Br, Bo, Br, Bo, $E, Estar)
+        B    : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
                  
-    model two_p_c_2c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
-        gam2_lin := gam2 * {sim_params['phi_lin_cyc']}
-        gam2_cyc := gam2 * {1.0 - sim_params['phi_lin_cyc']}
+    model two_p_c_2d(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1  : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
-        PC2l : photoEA(gam2_lin, k3, k4, P2, P2s, P2o, Ar, Ao, Cr, $Co, $E, Estar)
-        PC2c : photoEA(gam2_cyc, k3, k4, P2, P2s, P2o, Br, Bo, Br, Bo, $E, Estar)
-        B    : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        PC2l : photoEA(gam2, k3, k4, P2, P2s, P2o, Ar, Ao, Cr, $Co, $E, Estar)
+        PC2c : photoEA(gam2, k3, k4, P2, P2s, P2o, Br, Bo, Br, Bo, $E, Estar)
+        B    : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
                      
     model two_p_c_3a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
         PC2 : photo(gam2, k3, k4, P2, P2s, P2o, Ar, Ao, Br, Bo, $E, Estar)
         D1  : DCR_E(kcr, kcrb, Br, Bo, Cr, $Co, $E, Estar)
-        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
                          
     model two_p_c_3b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1 : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
         PC2 : photo(gam2, k3, k4, P2, P2s, P2o, Ar, Ao, Br, Bo, $E, Estar)
         D1  : DCR_E(kcr, kcrb, Br, Bo, Cr, $Co, $E, Estar)
-        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
                          
     model two_p_c_3c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
         PC2 : photoEA(gam2, k3, k4, P2, P2s, P2o, Ar, Ao, Br, Bo, $E, Estar)
         D1  : DCR_E(kcr, kcrb, Br, Bo, Cr, $Co, $E, Estar)
-        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
                          
     model two_p_c_3d(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1 : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
         PC2 : photoEA(gam2, k3, k4, P2, P2s, P2o, Ar, Ao, Br, Bo, $E, Estar)
         D1  : DCR_E(kcr, kcrb, Br, Bo, Cr, $Co, $E, Estar)
-        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
                              
     model two_p_c_4a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
-        gam2_lin := gam2 * {sim_params['phi_lin_cyc']}
-        gam2_cyc := gam2 * {1.0 - sim_params['phi_lin_cyc']}
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1  : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
-        PC2l : photo(gam2_lin, k3, k4, P2, P2s, P2o, Ar, Ao, Br, Bo, $E, Estar)
-        PC2c : photoEA(gam2_cyc, k3, k4, P2, P2s, P2o, Qr, Qo, Qr, Qo, $E, Estar)
+        PC2l : photo(gam2, k3, k4, P2, P2s, P2o, Ar, Ao, Br, Bo, $E, Estar)
+        PC2c : photoEA(gam2, k3, k4, P2, P2s, P2o, Qr, Qo, Qr, Qo, $E, Estar)
         D1   : DCR_E(kcr, kcrb, Br, Bo, Cr, $Co, $E, Estar)
-        B    : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B    : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
                              
     model two_p_c_4b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
-        gam2_lin := gam2 * {sim_params['phi_lin_cyc']}
-        gam2_cyc := gam2 * {1.0 - sim_params['phi_lin_cyc']}
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1  : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
-        PC2l : photo(gam2_lin, k3, k4, P2, P2s, P2o, Ar, Ao, Br, Bo, $E, Estar)
-        PC2c : photoEA(gam2_cyc, k3, k4, P2, P2s, P2o, Qr, Qo, Qr, Qo, $E, Estar)
+        PC2l : photo(gam2, k3, k4, P2, P2s, P2o, Ar, Ao, Br, Bo, $E, Estar)
+        PC2c : photoEA(gam2, k3, k4, P2, P2s, P2o, Qr, Qo, Qr, Qo, $E, Estar)
         D1   : DCR_E(kcr, kcrb, Br, Bo, Cr, $Co, $E, Estar)
-        B    : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B    : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
                                  
     model two_p_c_4c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
-        gam2_lin := gam2 * {sim_params['phi_lin_cyc']}
-        gam2_cyc := gam2 * {1.0 - sim_params['phi_lin_cyc']}
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1  : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
-        PC2l : photoEA(gam2_lin, k3, k4, P2, P2s, P2o, Ar, Ao, Br, Bo, $E, Estar)
-        PC2c : photoEA(gam2_cyc, k3, k4, P2, P2s, P2o, Qr, Qo, Qr, Qo, $E, Estar)
+        PC2l : photoEA(gam2, k3, k4, P2, P2s, P2o, Ar, Ao, Br, Bo, $E, Estar)
+        PC2c : photoEA(gam2, k3, k4, P2, P2s, P2o, Qr, Qo, Qr, Qo, $E, Estar)
         D1   : DCR_E(kcr, kcrb, Br, Bo, Cr, $Co, $E, Estar)
-        B    : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
-        P1constraint: 0 = P1 + P1s + P1o - 2*{sim_params['phi_lin_cyc']}
-        P2constraint: 0 = P2 + P2s + P2o - 2*{1.0 - sim_params['phi_lin_cyc']}
+        B    : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
                                      
     model two_p_c_4d(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
-        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, Cstore, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
-        gam2_lin := gam2 * {sim_params['phi_lin_cyc']}
-        gam2_cyc := gam2 * {1.0 - sim_params['phi_lin_cyc']}
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1  : photoEA(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
-        PC2l : photoEA(gam2_lin, k3, k4, P2, P2s, P2o, Ar, Ao, Br, Bo, $E, Estar)
-        PC2c : photoEA(gam2_cyc, k3, k4, P2, P2s, P2o, Qr, Qo, Qr, Qo, $E, Estar)
+        PC2l : photoEA(gam2, k3, k4, P2, P2s, P2o, Ar, Ao, Br, Bo, $E, Estar)
+        PC2c : photoEA(gam2, k3, k4, P2, P2s, P2o, Qr, Qo, Qr, Qo, $E, Estar)
         D1   : DCR_E(kcr, kcrb, Br, Bo, Cr, $Co, $E, Estar)
-        B    : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Cstore, Ar, Ao, Br, Bo, Qr, Qo)
+        B    : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
-   
+    
     // pull in whichever scheme you want from above and run that model
     model sim()
         // Variable initialization:
@@ -988,11 +1153,13 @@ def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
         kcrb  = {sim_params["k_cr_back"]}
         A: {scheme_to_call}(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
         // Species initializations:
-        var species A.P1, A.P1s, A.P1o, A.P2, A.P2s, A.P2o, A.Cr, A.Cstore, A.Ar, A.Br, A.Qr, A.Do, A.Estar;
+        var species A.P1, A.P1s, A.P1o, A.P2, A.P2s, A.P2o, A.Cr, A.Ar, A.Br, A.Qr, A.Do, A.Estar;
         const species A.Co, A.Dr, A.E, A.Ao, A.Bo, A.Qo
-        A.P1 = 1;    A.P1s = 0; A.P1o = 0;
-        A.P2 = 1;    A.P2s = 0; A.P2o = 0;
-        A.Cr = 0;    A.Co = 1;  A.Cstore = 0;
+
+        {pstr}
+        A.P1s = 0; A.P1o = 0;
+        A.P2s = 0; A.P2o = 0;
+        A.Cr = 0;    A.Co = 1;
         A.Ar = 0;    A.Ao = 1;
         A.Br = 0;    A.Bo = 1;
         A.Qr = 0;    A.Qo = 1;
@@ -1025,12 +1192,12 @@ def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
 
     return r, result, df, out_pref, output_files
 
-def df_plot(df, output_file):
+def df_plot(df, columns, output_file):
     '''
     plot the relevant columns as defined above from dataframe df
     '''
     fig, ax = plt.subplots()
-    for cn, cl in zip(columns, col_legends):
+    for cn, cl in zip(columns, [utils.get_latex(cc) for cc in columns]):
         ax.plot(df.index.to_numpy(), df[cn].to_numpy(),
                 label=cl, marker='o', ms=5.0)
     ax.legend()
@@ -1058,7 +1225,7 @@ def loop(constant, scheme_set):
         loop_str = "Tstar"
     else:
         raise ValueError("incorrect value {constant} passed to schemes.loop_over")
-    data = np.full((len(loop_var), len(columns)), np.nan, dtype=float)
+    data = np.full((len(loop_var), len(cols_to_log)), np.nan, dtype=float)
     for ii, vv in enumerate(loop_var):
         try:
             if loop_str == "Tstar":
@@ -1072,13 +1239,10 @@ def loop(constant, scheme_set):
             print("Runtime error in r.simulate() for {constant}, {vv}")
             continue
         ss_vals = df.loc[len(df)//2]
-        arr = np.array([ss_vals['[A_Cr]'], ss_vals['[A_Do]'], 
-                   ss_vals['[A_Ar]'], ss_vals['[A_Cstore]'],
-                   ss_vals['[A_Estar]']])
+        arr = np.array([ss_vals[col] for col in cols_to_log])
         data[ii, :] = arr
         fig, ax = utils.simple_plot(result,
-        ['[A_Cr]', '[A_Estar]', '[A_Do]'],
-        [r'$ C_r $', r'$E^*$', r'$D_o$'])
+        ['[A_Cr]', '[A_Estar]', '[A_Do]'])
         if loop_str == "scheme":
             ax.set_title(f"Scheme {vv}")
             plot_file = os.path.join(output_dir,
@@ -1096,9 +1260,9 @@ def loop(constant, scheme_set):
         fig.savefig(plot_file)
         plt.close()
     idx_s = pd.Index(scheme_params.keys(), name="scheme")
-    df = pd.DataFrame(data, columns = columns, index = idx_s)
+    df = pd.DataFrame(data, columns = cols_to_log, index = idx_s)
     df.to_csv(output_file)
-    df_plot(df, output_file)
+    df_plot(df, cols_to_log, output_file)
     return df, output_files
 
 def loop_over_all(scheme_set):
@@ -1120,7 +1284,7 @@ def loop_over_all(scheme_set):
     # zip up other output files
     zipfilename = os.path.join(output_dir, "other_files.zip")
     with zipfile.ZipFile(zipfilename, mode="w",
-            compression=zipfile.ZIP_BZIP2) as archive:
+            compression=zipfile.ZIP_DEFLATED) as archive:
         for filename in output_files:
             if os.path.isfile(filename):
                 archive.write(filename, arcname = os.path.basename(filename))
@@ -1130,15 +1294,16 @@ def loop_over_all(scheme_set):
     # plot - this is ugly but whatever
     fig, axes = plt.subplots(ncols=len(cols_to_plot),
                              figsize=((10*len(cols_to_plot), 8)))
-    for ii, (qq, ll) in enumerate(zip(cols_to_plot, labels)):
+    for ii, qq in enumerate(cols_to_plot):
         sdf = df[qq]
         for Tstar, new_df in sdf.groupby(level=0):
             ndf = new_df.droplevel(0)
             axes[ii].plot(ndf.index.to_numpy(), ndf.values, label=f"T = {Tstar}K", marker='o')
-        axes[ii].set_title(ll)
+        axes[ii].set_title(utils.get_latex(qq))
         axes[ii].legend()
         axes[ii].set_xlabel("scheme")
         axes[0].set_ylabel("value at light off")
+        axes[ii].grid(visible=True)
     title = f"{scheme_set} schemes, {simulation_params['intensity']} intensity"
     if scheme_set == "coupled":
         title += r', $ \phi $ = ' + f"{simulation_params['phi_lin_cyc']}"
@@ -1149,5 +1314,5 @@ def loop_over_all(scheme_set):
     return df
 
 if __name__ == "__main__":
-    scheme_set = "coupled"
+    scheme_set = "uncoupled"
     df = loop_over_all(scheme_set)
