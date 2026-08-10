@@ -23,11 +23,11 @@ out why. i will maybe fix this at some point.
 import os
 import pathlib
 import zipfile
+import roadrunner
 import tellurium as te
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.constants import h, c, e, Boltzmann
 import light
 import utils
 
@@ -37,7 +37,7 @@ period = tmax // cycles
 # print out the intermediate python f-string as a file. useful for debugging
 write_fstr = True
 # write out the final antimony model as a file. also for debugging
-write_antimony = True
+write_sbml = True
 # make a time-series plot of quantities to check convergence
 # if not using steady state methods
 make_time_series_plots = False
@@ -1174,23 +1174,23 @@ def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
         output_files.append(r_file)
         with open(r_file, "w") as f:
             f.write(antstr)
-    r = te.loada(antstr)
+    sbml_str = te.antimonyToSBML(antstr)
+    rr = roadrunner.RoadRunner(sbml_str)
+    ss = rr.steadyState()
+    vals = rr.getSteadyStateValuesNamedArray()
+    d = {}
+    for cc in vals.colnames:
+        d[cc] = vals[cc][0] # vals[cc] returns a len(1) array
+    d['sum_residuals'] = ss
+    print(d)
     
-    if write_antimony:
-        r_file = os.path.join(output_dir,
-                          f"{out_pref}_scheme_{scheme}_antimony.txt")
-        output_files.append(r_file)
-        r.exportToAntimony(r_file)
-    result = r.simulate(0, cycles*period, cycles*period + 1)
-    df_file = os.path.join(output_dir, f"{out_pref}_scheme_{scheme}.csv")
-    # results is a roadrunner.NamedArray not a structured numpy array
-    # so the relevant object method is colnames not fields
-    # (check dir(object) to look at all the methods! useful)
-    df = pd.DataFrame(result, columns=result.colnames)
-    df.to_csv(df_file)
-    output_files.append(df_file)
-
-    return r, result, df, out_pref, output_files
+    if write_sbml:
+        sbml_file = os.path.join(output_dir,
+                          f"{out_pref}_scheme_{scheme}_SBML.txt")
+        output_files.append(sbml_file)
+        with open(sbml_file, "w") as ff:
+            ff.write(rr.getCurrentSBML())
+    return d, out_pref, output_files
 
 def df_plot(df, columns, output_file):
     '''
@@ -1220,47 +1220,34 @@ def loop(constant, scheme_set):
     if constant in light.phz_stars['Tstar']:
         loop_var = scheme_params.keys()
         loop_str = "scheme"
+        idx = pd.Index(scheme_params.keys(), name="scheme")
     elif constant in scheme_params.keys():
         loop_var = light.phz_stars['Tstar']
         loop_str = "Tstar"
+        idx = pd.Index(light.phz_stars['Tstar'], name="Tstar")
     else:
         raise ValueError("incorrect value {constant} passed to schemes.loop_over")
-    data = np.full((len(loop_var), len(cols_to_log)), np.nan, dtype=float)
-    for ii, vv in enumerate(loop_var):
+    data = []
+    for vv in loop_var:
         try:
             if loop_str == "Tstar":
-                r, result, df, out_pref, ofs = run(constant, vv,
-                                                        scheme_set)
+                res_dict, out_pref, ofs = run(constant, vv, scheme_set)
             elif loop_str == "scheme":
-                r, result, df, out_pref, ofs = run(vv, constant,
-                                                        scheme_set)
+                res_dict, out_pref, ofs = run(vv, constant, scheme_set)
             output_files.extend(ofs)
         except RuntimeError:
             print("Runtime error in r.simulate() for {constant}, {vv}")
             continue
-        ss_vals = df.loc[len(df)//2]
-        arr = np.array([ss_vals[col] for col in cols_to_log])
-        data[ii, :] = arr
-        fig, ax = utils.simple_plot(result,
-        ['[A_Cr]', '[A_Estar]', '[A_Do]'])
-        if loop_str == "scheme":
-            ax.set_title(f"Scheme {vv}")
-            plot_file = os.path.join(output_dir,
-                        f"{out_pref}_scheme_{vv}.pdf")
-            output_file = os.path.join(output_dir,
-                    f"{out_pref}_steady_state.csv")
-        elif loop_str == "Tstar":
-            ax.set_title(f"Tstar {vv}")
-            plot_file = os.path.join(output_dir,
-                        f"{out_pref}_scheme_{constant}.pdf")
-            output_file = os.path.join(output_dir,
-                    f"scheme_{constant}_steady_state.csv")
-        plt.show()
-        output_files.append(plot_file)
-        fig.savefig(plot_file)
-        plt.close()
-    idx_s = pd.Index(scheme_params.keys(), name="scheme")
-    df = pd.DataFrame(data, columns = cols_to_log, index = idx_s)
+        data.append(res_dict)
+
+    if loop_str == "scheme":
+        output_file = os.path.join(output_dir,
+                                   f"{out_pref}_steady_state.csv")
+    else:
+        output_file = os.path.join(output_dir,
+                                   f"scheme_{constant}_steady_state.csv")
+
+    df = pd.DataFrame(data, index = idx)
     df.to_csv(output_file)
     df_plot(df, cols_to_log, output_file)
     return df, output_files
@@ -1314,5 +1301,5 @@ def loop_over_all(scheme_set):
     return df
 
 if __name__ == "__main__":
-    scheme_set = "uncoupled"
+    scheme_set = "one-photon"
     df = loop_over_all(scheme_set)
