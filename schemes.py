@@ -365,6 +365,13 @@ params = {
             'resp_stoi': 5,
             'dcr_stoi': 0,
             },
+        "12a" : { 
+            'scheme_to_call': "two_p_12a",
+            'deltaG_gamma': [utils.ev_nm(1192.0), utils.ev_nm(611.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 0,
+            },
     },
     "coupled": {
         "1a": {
@@ -540,7 +547,7 @@ params = {
 
 simulation_params = {
     "light"         : "switch",
-    "intensity"     : "high",
+    "intensity"     : "low",
     "maintenance_C" : False,
     "k_resp"        : 1,
     "k_resp_back"   : 1,
@@ -553,7 +560,7 @@ simulation_params = {
     "k_maintenance" : 1,
     "k_cr"          : 1,
     "k_cr_back"     : 1,
-    "phi_lin_cyc"   : 0.5,
+    "phi_lin_cyc"   : 0.9,
 }
 
 cols_to_log = ['[A_Cr]', '[A_Estar]', '[A_Do]', '[A_Ar]', '[A_Br]', '[A_Qr]']
@@ -698,20 +705,28 @@ def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
         Qdrain : Qr    -> $Qo ; kqr * Qr
     end
     
-    // reversible dark carbon reduction with no energy production
+    // reversible dark carbon reduction with no energy requirement
     model DCR_noE(kcr, kcrb, Ar, Ao, Cr, Co)
         species Ar, Ao, Cr, Co
         fw: Ar + $Co -> Ao + Cr; kcr * Ar
         bw: Ao + Cr -> Ar + $Co; kcrb * Ao * Cr
     end
 
-    // dark carbon reduction with energy production
+    // dark carbon reduction with energy requirement
     model DCR_E(kcr, kcrb, Ar, Ao, Cr, Co, E, Estar)
         // this is currently irreversible, per Chris
         // to make reversible just uncomment the backward reaction
         species Ar, Ao, Cr, Co, E, Estar
         fw: Ar + Co + {sc_p["dcr_stoi"]} Estar -> Ao + Cr + {sc_p["dcr_stoi"]} E; kcr * Ar * Co * (Estar^{sc_p["dcr_stoi"]})
         // bw: Ao + Cr + {sc_p["dcr_stoi"]} E -> Ar + Co + {sc_p["dcr_stoi"]} Estar; kcrb * Ao * Cr * (E^{sc_p["dcr_stoi"]})
+    end
+    
+    // dark energy generation for water-water scheme
+    model DEG(kcr, kcrb, Ar, Ao, Dr, Do, E, Estar)
+        // this is currently irreversible, per Chris
+        // to make reversible just uncomment the backward reaction
+        species Ar, Ao, Dr, Do, E, Estar
+        fw: Ar + Do + E -> Ao + Dr + Estar; kcr * Ar * Do * E
     end
 
     // just acceptor reduction and donor oxidation
@@ -1007,6 +1022,14 @@ def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
         B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
     
+    model two_p_12a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
+        PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
+        PC2 : photo(gam2, k3, k4, P2, P2s, P2o, $Dr, Do, Cr, Co, $E, Estar)
+        D1  : DEG(kcr, kcrb, Ar, Ao, Dr, Do, $E, Estar)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
+    end
+    
     model two_p_c_1a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
         species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
         PC1 : photo(gam1, k1, k2, P1, P1s, P1o, $Dr, Do, Ar, Ao, $E, Estar)
@@ -1181,7 +1204,7 @@ def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
     d = {}
     for cc in vals.colnames:
         d[cc] = vals[cc][0] # vals[cc] returns a len(1) array
-    d['sum_residuals'] = ss
+    d['sum_squared_residuals'] = ss
     print(d)
     
     if write_sbml:
