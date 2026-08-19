@@ -547,7 +547,7 @@ params = {
 
 simulation_params = {
     "light"         : "switch",
-    "intensity"     : "low",
+    "intensity"     : "high",
     "maintenance_C" : False,
     "k_resp"        : 1,
     "k_resp_back"   : 1,
@@ -560,7 +560,7 @@ simulation_params = {
     "k_maintenance" : 1,
     "k_cr"          : 1,
     "k_cr_back"     : 1,
-    "phi_lin_cyc"   : 0.9,
+    "phi_lin_cyc"   : 0.5,
 }
 
 cols_to_log = ['[A_Cr]', '[A_Estar]', '[A_Do]', '[A_Ar]', '[A_Br]', '[A_Qr]']
@@ -645,11 +645,11 @@ def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
         pstr = "A.P1 = 1; A.P2 = 1"
         
     if sim_params["intensity"] == "high":
-        exc_rate *= 10
+        exc_rate *= 1
     elif sim_params["intensity"] == "medium":
-        exc_rate *= 1 # for clarity
-    elif sim_params["intensity"] == "low":
         exc_rate *= 0.1
+    elif sim_params["intensity"] == "low":
+        exc_rate *= 0.01
     else:
         raise ValueError(f"params['intensity'] value = {params['intensity']} not recognised. Should be low, medium or high")
     
@@ -753,12 +753,8 @@ def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
        Dox  : Dr + Po + E  -> Do + P + Estar ; k2 * Po * Dr * E
     end
 
-    /* NB: every model must have a name of the form `scheme_SCHEMELABEL`,
-    * have all of the rates that are specified at the bottom as arguments,
-    * in the right order, and include the species definitions as below.
-    * the rate arguments are so that we can just set the rates in the
-    * final bit, sim_{scheme}, and the species are so we can initialise
-    * all the populations there as well.
+    /* models' names must match what's in the dicts above, and the function
+    * arguments and species declarations must be the same in each case.
     * This minimises the amount of per-scheme code we have to write
     * by eliminating the need to duplicate the rate declarations and
     * species initialisations for each scheme at the cost of this
@@ -840,26 +836,26 @@ def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
     
     model one_p_5a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
         species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;  
-        PC : photo(gam1, k1, k2, P1, P1s, P1o, Ar, Ao, Ar, Ao, $E, Estar)
+        PC : photoEA(gam1, k1, k2, P1, P1s, P1o, Cycr, Cyco, Cycr, Cyco, $E, Estar)
         B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
     
     model one_p_5b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
         species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
-        PC : photoED(gam1, k1, k2, P1, P1s, P1o, Ar, Ao, Ar, Ao, $E, Estar)
+        PC : photoED(gam1, k1, k2, P1, P1s, P1o, Cycr, Cyco, Cycr, Cyco, $E, Estar)
         B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
     
     model one_p_5c(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
         species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
-        PC : photoEA(gam1, k1, k2, P1, P1s, P1o, Ar, Ao, Ar, Ao, $E, Estar)
-        D  : DCR_E(kcr, kcrb, $Dr, Do, Cr, $Co, $E, Estar)
+        PC : photoEA(gam1, k1, k2, P1, P1s, P1o, Cycr, Cyco, Cycr, Cyco, $E, Estar)
+        D  : DCR_E(kcr, kcrb, Dr, Do, Cr, $Co, $E, Estar)
         B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
     
     model one_p_5d(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
         species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo;
-        PC : photoED(gam1, k1, k2, P1, P1s, P1o, Ar, Ao, Ar, Ao, $E, Estar)
+        PC : photoED(gam1, k1, k2, P1, P1s, P1o, Cycr, Cyco, Cycr, Cyco, $E, Estar)
         D  : DCR_E(kcr, kcrb, $Dr, Do, Cr, $Co, $E, Estar)
         B  : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
     end
@@ -1176,18 +1172,19 @@ def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
         kcrb  = {sim_params["k_cr_back"]}
         A: {scheme_to_call}(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
         // Species initializations:
-        var species A.P1, A.P1s, A.P1o, A.P2, A.P2s, A.P2o, A.Cr, A.Ar, A.Br, A.Qr, A.Do, A.Estar;
+        var species A.P1, A.P1s, A.P1o, A.P2, A.P2s, A.P2o, A.Cr, A.Ar, A.Br, A.Qr, A.Do, A.Cycr, A.Cyco, A.Estar;
         const species A.Co, A.Dr, A.E, A.Ao, A.Bo, A.Qo
 
         {pstr}
-        A.P1s = 0; A.P1o = 0;
-        A.P2s = 0; A.P2o = 0;
-        A.Cr = 0;    A.Co = 1;
-        A.Ar = 0;    A.Ao = 1;
-        A.Br = 0;    A.Bo = 1;
-        A.Qr = 0;    A.Qo = 1;
-        A.Do = 0;    A.Dr = 1;
-        A.Estar = 0; A.E = 1;
+        A.P1s   = 0; A.P1o  = 0;
+        A.P2s   = 0; A.P2o  = 0;
+        A.Cr    = 0; A.Co   = 1;
+        A.Ar    = 0; A.Ao   = 1;
+        A.Br    = 0; A.Bo   = 1;
+        A.Qr    = 0; A.Qo   = 1;
+        A.Cycr  = 0; A.Cyco = 1;
+        A.Do    = 0; A.Dr   = 1;
+        A.Estar = 0; A.E    = 1;
     end
     """
     output_files = []
@@ -1312,7 +1309,7 @@ def loop_over_all(scheme_set):
         axes[ii].set_title(utils.get_latex(qq))
         axes[ii].legend()
         axes[ii].set_xlabel("scheme")
-        axes[0].set_ylabel("value at light off")
+        axes[0].set_ylabel("steady-state concentration")
         axes[ii].grid(visible=True)
     title = f"{scheme_set} schemes, {simulation_params['intensity']} intensity"
     if scheme_set == "coupled":
