@@ -428,15 +428,60 @@ params = {
             'resp_stoi': 5,
             'dcr_stoi': 1, # this is SI-ER + E1I-ER; we have DCR_noE + DCR_E
             },
-        "12a" : { 
-            'scheme_to_call': "two_p_12b",
+        "12b" : { # SI-ER + E4I-ER
+            'scheme_to_call': "two_p_12a",
             'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(1192.0)],
             'split_lin_cyc': False,
             'resp_stoi': 5,
             'dcr_stoi': 4,
             },
-        "12a" : { 
-            'scheme_to_call': "two_p_12a",
+        "12c" : { # SI-ER + E1I-EA
+            'scheme_to_call': "two_p_12b",
+            'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(611.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 1,
+            },
+        "12d" : { # SI-ER + E4I-EA
+            'scheme_to_call': "two_p_12b",
+            'deltaG_gamma': [utils.ev_nm(611.0), utils.ev_nm(954.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 4,
+            },
+        "13a" : { # SI-EA + E1I-ER
+            'scheme_to_call': "two_p_13a",
+            'deltaG_gamma': [utils.ev_nm(541.0), utils.ev_nm(700.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 1,
+            },
+        "13b" : { # SI-EA + E4I-ER
+            'scheme_to_call': "two_p_13a",
+            'deltaG_gamma': [utils.ev_nm(541.0), utils.ev_nm(1192.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 4,
+            },
+        "13c" : { # SI-EA + E1I-EA
+            'scheme_to_call': "two_p_13b",
+            'deltaG_gamma': [utils.ev_nm(541.0), utils.ev_nm(611.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 1,
+            },
+        "13d" : { # SI-EA + E4I-EA
+            'scheme_to_call': "two_p_13b",
+            'deltaG_gamma': [utils.ev_nm(541.0), utils.ev_nm(954.0)],
+            'split_lin_cyc': False,
+            'resp_stoi': 5,
+            'dcr_stoi': 4,
+            },
+        # NB: there should be scheme 14s with E1I + E4I; but at the moment
+        # this is impossible with the way the code's set out because
+        # there's only one value given for DCR_E. this is very annoying.
+        "14a" : {  # this is the water-water one i think - check
+            'scheme_to_call': "two_p_14a",
             'deltaG_gamma': [utils.ev_nm(1192.0), utils.ev_nm(611.0)],
             'split_lin_cyc': False,
             'resp_stoi': 5,
@@ -629,7 +674,7 @@ simulation_params = {
     "k_maintenance" : 1,
     "k_cr"          : 1,
     "k_cr_back"     : 1,
-    "phi_lin_cyc"   : 0.5,
+    "phi_lin_cyc"   : 0.9,
 }
 
 cols_to_log = ['[A_Cr]', '[A_Estar]', '[A_Do]', '[A_Ar]', '[A_Br]', '[A_Qr]']
@@ -705,7 +750,7 @@ def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
         exc_rate[i] = uf/total_flux
 
     if sc_p['split_lin_cyc']:
-        pstr = f"A.P1 = {2 * sim_params['phi_lin_cyc']}; " +\
+        pstr = f"A.P1 = {2. * sim_params['phi_lin_cyc']}; " +\
         f"A.P2 = {2. * (1. - sim_params['phi_lin_cyc'])}"
     else:
         pstr = "A.P1 = 1; A.P2 = 1"
@@ -1133,6 +1178,42 @@ def run(scheme, Tstar, scheme_set, sim_params=simulation_params):
     model two_p_12a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
         species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo, Cycr, Cyco;
         PC1 : photo(gam1, k1, k2, P1, P1s, P1o, Dr, Do, Ar, Ao, E, Estar)
+        PC2 : photo(gam2, k3, k4, P2, P2s, P2o, Br, Bo, Cr, Co, E, Estar)
+        D1  : DCR_noE(kcr, kcrb, Ar, Ao, Cr, Co)
+        D2  : DCR_E(kcr, kcrb, Br, Bo, Cr, Co, E, Estar)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
+    end
+    
+    model two_p_12b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo, Cycr, Cyco;
+        PC1 : photo(gam1, k1, k2, P1, P1s, P1o, Dr, Do, Ar, Ao, E, Estar)
+        PC2 : photoEA(gam2, k3, k4, P2, P2s, P2o, Br, Bo, Cr, Co, E, Estar)
+        D1  : DCR_noE(kcr, kcrb, Ar, Ao, Cr, Co)
+        D2  : DCR_E(kcr, kcrb, Br, Bo, Cr, Co, E, Estar)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
+    end
+        
+    model two_p_13a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo, Cycr, Cyco;
+        PC1 : photoEA(gam1, k1, k2, P1, P1s, P1o, Dr, Do, Ar, Ao, E, Estar)
+        PC2 : photo(gam2, k3, k4, P2, P2s, P2o, Br, Bo, Cr, Co, E, Estar)
+        D1  : DCR_noE(kcr, kcrb, Ar, Ao, Cr, Co)
+        D2  : DCR_E(kcr, kcrb, Br, Bo, Cr, Co, E, Estar)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
+    end
+    
+    model two_p_13b(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo, Cycr, Cyco;
+        PC1 : photoEA(gam1, k1, k2, P1, P1s, P1o, Dr, Do, Ar, Ao, E, Estar)
+        PC2 : photoEA(gam2, k3, k4, P2, P2s, P2o, Br, Bo, Cr, Co, E, Estar)
+        D1  : DCR_noE(kcr, kcrb, Ar, Ao, Cr, Co)
+        D2  : DCR_E(kcr, kcrb, Br, Bo, Cr, Co, E, Estar)
+        B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
+    end
+    
+    model two_p_14a(gam1, gam2, k1, k2, k3, k4, km, kr, kb, kd, kn, kcr, kcrb)
+        species P1, P1s, P1o, P2, P2s, P2o, Do, Dr, Co, Cr, E, Estar, Ar, Ao, Br, Bo, Qr, Qo, Cycr, Cyco;
+        PC1 : photo(gam1, k1, k2, P1, P1s, P1o, Dr, Do, Ar, Ao, E, Estar)
         PC2 : photo(gam2, k3, k4, P2, P2s, P2o, Dr, Do, Cr, Co, E, Estar)
         D1  : DEG(kcr, kcrb, Ar, Ao, Dr, Do, E, Estar)
         B   : bg(kr, kb, km, kd, kn, Dr, Do, Cr, Co, E, Estar, Ar, Ao, Br, Bo, Qr, Qo)
@@ -1433,5 +1514,5 @@ def loop_over_all(scheme_set):
     return df
 
 if __name__ == "__main__":
-    scheme_set = "uncoupled"
+    scheme_set = "coupled"
     df = loop_over_all(scheme_set)
