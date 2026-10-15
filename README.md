@@ -1,5 +1,7 @@
 # FMOP - Flux Models of Oxygenic Photosynthesis
 
+WARNING: this is some really, really ugly code!! Here be dragons, I apologise for the state of it, etc.
+
 This code uses [tellurium](https://tellurium.readthedocs.io/en/latest/index.html) to set up and simulate simple models of *possible* but not *extant* photosynthesis.
 The point is to investigate whether oxygenic photosynthesis as it is found on Earth is a "better" (in the sense of how much carbon it can reduce and also in robustness to fluctuations in light) way of doing things than others we could imagine.
 
