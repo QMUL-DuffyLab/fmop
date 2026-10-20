@@ -50,7 +50,8 @@ def make_outdir(basedir, scheme_set, sim_params):
                 f"{scheme_set}",
                 f"{sim_params['intensity']}_intensity")
     if scheme_set == "coupled":
-        output_dir = os.path.join(output_dir, f"phi_{sim_params['phi_lin_cyc']}")
+        output_dir = os.path.join(output_dir,
+                            f"phi_{sim_params['phi_lin_cyc']}")
     os.makedirs(output_dir, exist_ok=True)
     return output_dir
 
@@ -80,9 +81,11 @@ def run(scheme, Tstar, scheme_set, sim_params):
     '''
     scheme_params = params[scheme_set]
     if scheme not in scheme_params.keys():
-        raise KeyError(f"Incorrect scheme provided to run(). Scheme = {scheme}, allowed schemes are {params.keys()}")
+        raise KeyError(f"Incorrect scheme provided to run(). "
+        f"Scheme = {scheme}, allowed schemes are {params.keys()}")
     if Tstar not in light.phz_stars['Tstar']:
-        raise ValueError(f"Incorrect stellar temperature provided to run(). Tstar = {Tstar}, allowed values are {light.phz_stars['Tstar']}")
+        raise ValueError(f"Incorrect stellar temperature provided to run(). "
+        f"Tstar = {Tstar}, allowed values are {light.phz_stars['Tstar']}")
     print(f"Ts = {Tstar}, Scheme {scheme}")
     spectrum, out_pref = light.stellar_hz_midpoint(Tstar)
     total_flux = light.micromole_in_region(spectrum,
@@ -109,10 +112,10 @@ def run(scheme, Tstar, scheme_set, sim_params):
         exc_rate[i] = uf/total_flux
 
     if 'split_lin_cyc' in sc_p:
-        pstr = f"A.P1 = {2. * sim_params['phi_lin_cyc']}; " +\
-        f"A.P2 = {2. * (1. - sim_params['phi_lin_cyc'])}"
+        pstr = f"A.P1   = {2. * sim_params['phi_lin_cyc']}; " +\
+        f"A.P2   = {2. * (1. - sim_params['phi_lin_cyc'])}"
     else:
-        pstr = "A.P1 = 1; A.P2 = 1"
+        pstr = "A.P1   = 1; A.P2   = 1"
         
     if sim_params["intensity"] == "high":
         exc_rate *= 1
@@ -121,7 +124,8 @@ def run(scheme, Tstar, scheme_set, sim_params):
     elif sim_params["intensity"] == "low":
         exc_rate *= 0.01
     else:
-        raise ValueError(f"params['intensity'] value = {params['intensity']} not recognised. Should be low, medium or high")
+        raise ValueError(f"params['intensity'] value = {params['intensity']} "
+                         "not recognised. Should be low, medium or high")
     
     print(f"Total flux = {total_flux} muE. exc_rate = {exc_rate}")
     gamma_string = [f"constant(time, {er})" for er in exc_rate]
@@ -141,14 +145,14 @@ def run(scheme, Tstar, scheme_set, sim_params):
         const species A.Co, A.Dr, A.E, A.Ao, A.Qo
 
         {pstr}
-        A.P1s   = 0; A.P2s  = 0;
-        A.P1st  = 0; A.P2st = 0;
-        A.P1o   = 0; A.P2o  = 0;
-        A.Cr    = 0; A.Co   = 1;
-        A.Ar    = 0; A.Ao   = 1;
-        A.Qr    = 0; A.Qo   = 1;
-        A.Do    = 0; A.Dr   = 1;
-        A.Est = 0;   A.E    = 1;
+        A.P1s  = 0; A.P2s  = 0;
+        A.P1st = 0; A.P2st = 0;
+        A.P1o  = 0; A.P2o  = 0;
+        A.Cr   = 0; A.Co   = 1;
+        A.Ar   = 0; A.Ao   = 1;
+        A.Qr   = 0; A.Qo   = 1;
+        A.Do   = 0; A.Dr   = 1;
+        A.Est  = 0; A.E    = 1;
     end
     """
     output_files = []
@@ -210,7 +214,8 @@ def loop(constant, scheme_set, sim_params):
         loop_str = "Tstar"
         idx = pd.Index(light.phz_stars['Tstar'], name="Tstar")
     else:
-        raise ValueError("incorrect value {constant} passed to schemes.loop_over")
+        raise ValueError("incorrect value {constant} passed "
+        "to schemes.loop_over")
     data = []
     for vv in loop_var:
         try:
@@ -271,7 +276,8 @@ def loop_over_all(scheme_set, sim_params):
         sdf = df[qq]
         for Tstar, new_df in sdf.groupby(level=0):
             ndf = new_df.droplevel(0)
-            axes[ii].plot(ndf.index.to_numpy(), ndf.values, label=f"T = {Tstar}K", marker='o')
+            axes[ii].plot(ndf.index.to_numpy(), ndf.values,
+                          label=f"T = {Tstar}K", marker='o')
         axes[ii].set_title(utils.get_latex(qq))
         axes[ii].legend()
         axes[ii].set_xlabel("scheme")

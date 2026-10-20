@@ -27,9 +27,9 @@ model opA(gam1, gam2)
    const species Dr, Co, E, Ao, Qo
    kar = 1; kpo = 1; kco = 1
    PC   : ph(gam1, P1, P1st, P1s)
-   Ared : Ps + Ao + E -> Po + Ar + Est ; kar * Ps * Ao * E
-   Dox  : Dr + Po     -> Do + P        ; kpo * Ar * Po
-   Cred : Ar + Co     -> Ao + Cr       ; kco * Ar * Co
+   Ared : P1s + Ao + E -> P1o + Ar + Est ; kar * P1s * Ao * E
+   Dox  : Dr + P1o     -> Do + P1        ; kpo * Dr * P1o
+   Cred : Ar + Co      -> Ao + Cr        ; kco * Ar * Co
    B    : bg(Dr, Do, Cr, Co, E, Estar, Ar, Ao)
 end
 
@@ -38,10 +38,10 @@ model opB(gam1, gam2)
    const species Dr, Co, E, Ao, Qo
    kar = 1; kpo = 1; kco = 1
    PC    : ph(gam1, P1, P1st, P1s)
-   Ared  : Ps + Ao + E -> Po + Ar + Est ; kar * Ps * Ao * E
-   Dox   : Dr + Po     -> Do + P        ; kpo * Ar * Po
-   Cred  : Ar + Co     -> Ao + Cr       ; kco * Ar * Co
-   Credb : Ao + Cr     -> Ar + Co       ; kco * Ao * Cr
+   Ared  : P1s + Ao + E -> P1o + Ar + Est ; kar * P1s * Ao * E
+   Dox   : Dr + P1o     -> Do + P1        ; kpo * Dr * P1o
+   Cred  : Ar + Co      -> Ao + Cr        ; kco * Ar * Co
+   Credb : Ao + Cr      -> Ar + Co        ; kco * Ao * Cr
    B     : bg(Dr, Do, Cr, Co, E, Estar, Ar, Ao)
 end
 
@@ -50,10 +50,10 @@ model opC(gam1, gam2)
    const species Dr, Co, E, Ao, Qo
    kar = 1; kpo = 1; kco = 1
    PC    : ph(gam1, P1, P1st, P1s)
-   Ared  : Ps + Ao + E   -> Po + Ar + Est ; kar * Ps * Ao * E
-   Dox   : Dr + Po       -> Do + P        ; kpo * Ar * Po
-   Cred  : Ar + Co + Est -> Ao + Cr + E   ; kco * Ar * Co * Est
-   Credb : Ao + Cr + E   -> Ar + Co + Est ; kco * Ao * Cr * E
+   Ared  : P1s + Ao + E   -> P1o + Ar + Est ; kar * P1s * Ao * E
+   Dox   : Dr + P1o       -> Do + P1        ; kpo * Dr * P1o
+   Cred  : Ar + Co + Est  -> Ao + Cr + E    ; kco * Ar * Co * Est
+   Credb : Ao + Cr + E    -> Ar + Co + Est  ; kco * Ao * Cr * E
    B     : bg(Dr, Do, Cr, Co, E, Estar, Ar, Ao)
 end
 
@@ -62,8 +62,8 @@ model opD(gam1, gam2)
    const species Dr, Co, E, Ao, Qo
    kar = 1; kpo = 1; kco = 1
    PC   : ph(gam1, P1, P1st, P1s)
-   Qred : Ps + Qo + E     -> Po + Qr + Est   ; kar * Ps * Qo * E
-   Qox  : Qr + Po         -> Qo + P          ; kpo * Qr * Po
-   Cred : Do + Cr + 3 Est -> Dr + Co + 3 E ; kco * Do * Cr * (Est^3);
+   Qred : P1s + Qo + E     -> P1o + Qr + Est   ; kar * P1s * Qo * E
+   Qox  : Qr + P1o         -> Qo + P1          ; kpo * Qr * P1o
+   Cred : Do + Cr + 3 Est  -> Dr + Co + 3 E    ; kco * Do * Cr * (Est^3);
    B    : bg(Dr, Do, Cr, Co, E, Estar, Ar, Ao)
 end

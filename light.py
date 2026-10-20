@@ -29,15 +29,13 @@ arguments or arguments for which there's a choice of options.
 possible functions? maybe using inspect.get_members or something, idk yet
 """
 import os
+import utils
 import sys
 import inspect
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.constants import h, c, Avogadro, Boltzmann
-
-xlim = [400.0, 2000.0]
-nx = int(xlim[1] - xlim[0])
 
 # AU in metres for stellar spectra
 AU = 149597870700
@@ -183,7 +181,7 @@ def stellar(**kwargs):
         raise
     output_prefix = f"stellar_{T:4d}K_a_{a:6.4f}AU"
     a *= AU # convert to metres
-    lambdas = np.linspace(xlim[0], xlim[1], nx)
+    lambdas = np.linspace(utils.xlim[0], utils.xlim[1], utils.nx)
     # spectral irradiance (W m^{-2} nm^{-1})
     lambdas *= 1e-9 # convert to SI
     sp = 1.0E-9 * np.pi * ((2.0 * h * c**2 / lambdas**5.0)
@@ -211,7 +209,7 @@ def gaussian(**kwargs):
         raise
     # this will be a mess if these are lists
     output_prefix = f"gauss_{a}_{mu}_{sigma}_{intensity}"
-    lambdas = np.linspace(xlim, nx)
+    lambdas = np.linspace(utils.xlim, utils.nx)
     gauss = utils.gauss(lambdas, mu, sigma, a)
     return np.column_stack((lambdas, gauss)), output_prefix
 
@@ -433,7 +431,7 @@ def check(spectra_dicts):
         fig, ax = plt.subplots(figsize=(12, 8))
         plt.plot(spectrum[:, 0], spectrum[:, 1])
         ax.set_xlabel("wavelength (nm)")
-        ax.set_xlim(xlim)
+        ax.set_xlim(utils.xlim)
         ax.set_ylabel(r'intensity')
         ax.set_title(out_pref)
         fig.savefig(os.path.join(outdir,

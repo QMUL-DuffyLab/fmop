@@ -15,7 +15,7 @@ base_dir = "out"
 hcnm = (h * c) / (1.0E-9)
 dg_h2o = -5.10 # in eV
 dg_co2 = -3.85 # in eV
-xlim = [400.0, 4000.0]
+xlim = [300.0, 4000.0]
 increment = 10
 nx = int(xlim[1] - xlim[0])//increment + 1 # + 1 for linspace
 
