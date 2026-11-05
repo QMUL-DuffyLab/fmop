@@ -25,6 +25,10 @@ dg_p = utils.dg_co2 - utils.dg_h2o
 alpha = 15 # how many kBT does an Estar carry?
 T = 300 # temp in kelvin
 akt = alpha * utils.kbt_ev(T)
+total_flux_max = utils.ev_nm(dg_p) # where to integrate up to for gamma
+
+def cyc_db(x):
+    return x - (3 * akt)
 
 params = {
     "one-photon": {
@@ -110,7 +114,8 @@ def run(scheme, Tstar, scheme_set, sim_params):
     print(f"Ts = {Tstar}, Scheme {scheme}")
     spectrum, out_pref = light.stellar_hz_midpoint(Tstar)
     total_flux = light.micromole_in_region(spectrum,
-            utils.xlim[0], utils.ev_nm(dg_p))
+             utils.xlim[0], total_flux_max)
+
     sc_p = scheme_params[scheme]
 
     output_dir = make_outdir(utils.base_dir, scheme_set, sim_params)
@@ -129,12 +134,10 @@ def run(scheme, Tstar, scheme_set, sim_params):
     uf = light.micromole_in_region(spectrum, 
                 utils.xlim[0], utils.ev_nm(sc_p['deltaG_gamma']))
     exc_rate = uf/total_flux
+    cyc_gap = sc_p['deltaG_gamma'] - 3 * akt
+    cyc_rate = np.exp(-cyc_gap/utils.kbt_ev(T))
 
-    if 'split_lin_cyc' in sc_p:
-        pstr = f"A.P1   = {2. * sim_params['phi_lin_cyc']}; " +\
-        f"A.P2   = {2. * (1. - sim_params['phi_lin_cyc'])}"
-    else:
-        pstr = "A.P1   = 1; A.P2   = 1"
+    pstr = "A.P1   = 1; A.P2   = 1"
         
     if sim_params["intensity"] == "high":
         exc_rate *= 1
@@ -157,7 +160,8 @@ def run(scheme, Tstar, scheme_set, sim_params):
         // Variable initialization:
         gam1 := {gamma_string}
         gam2 := {gamma_string}
-        A: {scheme}(gam1, gam2)
+        kc   := {cyc_rate}
+        A: {scheme}(gam1, gam2, kc)
         // Species initializations:
         var species A.P1, A.P1s, A.P1st, A.P1o, A.P2, A.P2s, A.P2st, A.P2o;
         var species A.Cr, A.Ao, A.Ar, A.Qr, A.Qo, A.Do, A.Est;
@@ -189,14 +193,17 @@ def run(scheme, Tstar, scheme_set, sim_params):
         output_files.append(sbml_file)
         with open(sbml_file, "w") as ff:
             ff.write(sbml_str)
-    
-    rr = roadrunner.RoadRunner(sbml_str)
-    ss = rr.steadyState()
-    vals = rr.getSteadyStateValuesNamedArray()
+    #
+    #rr = roadrunner.RoadRunner(sbml_str)
+    #ss = rr.steadyState()
+    #vals = rr.getSteadyStateValuesNamedArray()
+    r = te.loadAntimonyModel(antstr)
+    result = r.simulate(0, 1000, 1000)
+    r.plot(result)
     d = {}
-    for cc in vals.colnames:
-        d[cc] = vals[cc][0] # vals[cc] returns a len(1) array
-    d['sum_squared_residuals'] = ss
+    for cc in result.colnames:
+        d[cc] = result[cc][-1] # vals[cc] returns a len(1) array
+    #d['sum_squared_residuals'] = ss
     d['gamma'] = exc_rate
     print(d)
     
@@ -204,8 +211,8 @@ def run(scheme, Tstar, scheme_set, sim_params):
         sbml_file = os.path.join(output_dir,
                           f"{out_pref}_scheme_{scheme}_SBML_final.txt")
         output_files.append(sbml_file)
-        with open(sbml_file, "w") as ff:
-            ff.write(rr.getCurrentSBML())
+    #   with open(sbml_file, "w") as ff:
+    #        ff.write(rr.getCurrentSBML())
             
     return d, out_pref, output_files
 

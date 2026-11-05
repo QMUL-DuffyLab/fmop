@@ -21,7 +21,7 @@ model ph(gam, P, Pst, Ps)
     recomb : Ps  -> P   ; krc  * Ps
 end
 
-model opA(gam1, gam2)
+model opA(gam1, gam2, kc)
    var species P1, P1st, P1s, P1o, P2, P2st, P2s, P2o
    var species Do, Cr, Est, Ao, Ar, Ao, Qr, Qo
    const species Dr, Co, E
@@ -33,7 +33,7 @@ model opA(gam1, gam2)
    B    : bg(Dr, Do, Cr, Co, E, Est)
 end
 
-model opB(gam1, gam2)
+model opB(gam1, gam2, kc)
    var species P1, P1st, P1s, P1o, P2, P2st, P2s, P2o
    var species Do, Cr, Est, Ao, Ar, Ao, Qr, Qo
    const species Dr, Co, E
@@ -46,7 +46,7 @@ model opB(gam1, gam2)
    B    : bg(Dr, Do, Cr, Co, E, Est)
 end
 
-model opC(gam1, gam2)
+model opC(gam1, gam2, kc)
    var species P1, P1st, P1s, P1o, P2, P2st, P2s, P2o
    var species Do, Cr, Est, Ao, Ar, Ao, Qr, Qo
    const species Dr, Co, E
@@ -59,7 +59,7 @@ model opC(gam1, gam2)
    B    : bg(Dr, Do, Cr, Co, E, Est)
 end
 
-model opD(gam1, gam2)
+model opD(gam1, gam2, kc)
    var species P1, P1st, P1s, P1o, P2, P2st, P2s, P2o
    var species Do, Cr, Est, Ao, Ar, Ao, Qr, Qo
    const species Dr, Co, E
@@ -71,7 +71,7 @@ model opD(gam1, gam2)
    B    : bg(Dr, Do, Cr, Co, E, Est)
 end
 
-model tpA(gam1, gam2)
+model tpA(gam1, gam2, kc)
    var species P1, P1st, P1s, P1o, P2, P2st, P2s, P2o
    var species Do, Cr, Est, Ao, Ar, Ao, Qr, Qo
    const species Dr, Co, E
@@ -86,7 +86,7 @@ model tpA(gam1, gam2)
    B    : bg(Dr, Do, Cr, Co, E, Est)
 end
 
-model tpB(gam1, gam2)
+model tpB(gam1, gam2, kc)
    var species P1, P1st, P1s, P1o, P2, P2st, P2s, P2o
    var species Do, Cr, Est, Ao, Ar, Ao, Qr, Qo
    const species Dr, Co, E
@@ -102,7 +102,7 @@ model tpB(gam1, gam2)
    B     : bg(Dr, Do, Cr, Co, E, Est)
 end
 
-model tpC(gam1, gam2)
+model tpC(gam1, gam2, kc)
    var species P1, P1st, P1s, P1o, P2, P2st, P2s, P2o
    var species Do, Cr, Est, Ao, Ar, Ao, Qr, Qo
    const species Dr, Co, E
@@ -118,7 +118,7 @@ model tpC(gam1, gam2)
    B     : bg(Dr, Do, Cr, Co, E, Est)
 end
 
-model tpD(gam1, gam2)
+model tpD(gam1, gam2, kc)
    var species P1, P1st, P1s, P1o, P2, P2st, P2s, P2o
    var species Do, Cr, Est, Ao, Ar, Ao, Qr, Qo
    const species Dr, Co, E
@@ -132,10 +132,10 @@ model tpD(gam1, gam2)
    Cred : Ar + Co      -> Ao + Cr        ; kco * Ar * Co
    B    : bg(Dr, Do, Cr, Co, E, Est)
    AQc  : Ar + Qo -> Ao + Qr; kar * Ar * Qo
-   AQcb : Ao + Qr -> Ar + Qo; kar * Ao * Qr
+   AQcb : Ao + Qr -> Ar + Qo; kar * kc * Ao * Qr
 end
 
-model tpE(gam1, gam2)
+model tpE(gam1, gam2, kc)
    var species P1, P1st, P1s, P1o, P2, P2st, P2s, P2o
    var species Do, Cr, Est, Ao, Ar, Ao, Qr, Qo
    const species Dr, Co, E
@@ -150,10 +150,10 @@ model tpE(gam1, gam2)
    Credb : Ao + Cr      -> Ar + Co        ; kco * Ao * Cr
    B     : bg(Dr, Do, Cr, Co, E, Est)
    AQc   : Ar + Qo -> Ao + Qr; kar * Ar * Qo
-   AQcb  : Ao + Qr -> Ar + Qo; kar * Ao * Qr
+   AQcb  : Ao + Qr -> Ar + Qo; kar * kc * Ao * Qr
 end
 
-model tpF(gam1, gam2)
+model tpF(gam1, gam2, kc)
    var species P1, P1st, P1s, P1o, P2, P2st, P2s, P2o
    var species Do, Cr, Est, Ao, Ar, Ao, Qr, Qo
    const species Dr, Co, E
@@ -168,5 +168,5 @@ model tpF(gam1, gam2)
    Credb : Ao + Cr + E   -> Ar + Co + Est  ; kco * Ao * Cr * E
    B     : bg(Dr, Do, Cr, Co, E, Est)
    AQc   : Ar + Qo -> Ao + Qr; kar * Ar * Qo
-   AQcb  : Ao + Qr -> Ar + Qo; kar * Ao * Qr
+   AQcb  : Ao + Qr -> Ar + Qo; kar * kc * Ao * Qr
 end
