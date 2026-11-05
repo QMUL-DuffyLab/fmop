@@ -22,23 +22,44 @@ write_fstr = True
 write_sbml = True
 
 dg_p = utils.dg_co2 - utils.dg_h2o
+alpha = 15 # how many kBT does an Estar carry?
+T = 300 # temp in kelvin
+akt = alpha * utils.kbt_ev(T)
 
 params = {
     "one-photon": {
         "opA" : { 
-            'deltaG_gamma': [utils.ev_nm(322.0), np.nan],
+            'deltaG_gamma': 5 * akt + dg_p,
             },
         "opB" : { 
-            'deltaG_gamma': [utils.ev_nm(372.0), np.nan],
+            'deltaG_gamma': 4 * akt + dg_p,
             },
         "opC" : { 
-            'deltaG_gamma': [utils.ev_nm(441.0), np.nan],
+            'deltaG_gamma': 3 * akt + dg_p,
             },
         "opD" : { 
-            'deltaG_gamma': [utils.ev_nm(1192.0), np.nan],
+            'deltaG_gamma': 4 * akt,
             },
     },
     "two-photon": {
+        "tpA" : { 
+            'deltaG_gamma': 0.5 * (8 * akt + dg_p),
+            },
+        "tpB" : { 
+            'deltaG_gamma': 0.5 * (7 * akt + dg_p),
+            },
+        "tpC" : { 
+            'deltaG_gamma': 0.5 * (6 * akt + dg_p),
+            },
+        "tpD" : { 
+           'deltaG_gamma': 0.5 * (8 * akt + dg_p),
+           },
+        "tpE" : { 
+            'deltaG_gamma': 0.5 * (7 * akt + dg_p),
+            },
+        "tpF" : { 
+            'deltaG_gamma': 0.5 * (6 * akt + dg_p),
+            },
     },
 }
 
@@ -105,11 +126,9 @@ def run(scheme, Tstar, scheme_set, sim_params):
     spec_file = os.path.splitext(spec_file)[0] + ".csv"
     np.savetxt(spec_file, spectrum)
 
-    exc_rate = np.zeros(len(sc_p['deltaG_gamma']), dtype=float)
-    for i, dgg in enumerate(sc_p['deltaG_gamma']):
-        uf = light.micromole_in_region(spectrum, 
-                utils.xlim[0], utils.ev_nm(dgg))
-        exc_rate[i] = uf/total_flux
+    uf = light.micromole_in_region(spectrum, 
+                utils.xlim[0], utils.ev_nm(sc_p['deltaG_gamma']))
+    exc_rate = uf/total_flux
 
     if 'split_lin_cyc' in sc_p:
         pstr = f"A.P1   = {2. * sim_params['phi_lin_cyc']}; " +\
@@ -128,7 +147,7 @@ def run(scheme, Tstar, scheme_set, sim_params):
                          "not recognised. Should be low, medium or high")
     
     print(f"Total flux = {total_flux} muE. exc_rate = {exc_rate}")
-    gamma_string = [f"constant(time, {er})" for er in exc_rate]
+    gamma_string = f"{exc_rate}"
 
     antstr = f"""
     import "models.txt"
@@ -136,13 +155,13 @@ def run(scheme, Tstar, scheme_set, sim_params):
     // wrapper - the loop calls each model in term via {scheme}
     model sim()
         // Variable initialization:
-        gam1 := {gamma_string[0]}
-        gam2 := {gamma_string[1]}
+        gam1 := {gamma_string}
+        gam2 := {gamma_string}
         A: {scheme}(gam1, gam2)
         // Species initializations:
         var species A.P1, A.P1s, A.P1st, A.P1o, A.P2, A.P2s, A.P2st, A.P2o;
-        var species A.Cr, A.Ar, A.Qr, A.Do, A.Est;
-        const species A.Co, A.Dr, A.E, A.Ao, A.Qo
+        var species A.Cr, A.Ao, A.Ar, A.Qr, A.Qo, A.Do, A.Est;
+        const species A.Co, A.Dr, A.E
 
         {pstr}
         A.P1s  = 0; A.P2s  = 0;
@@ -163,6 +182,14 @@ def run(scheme, Tstar, scheme_set, sim_params):
         with open(r_file, "w") as f:
             f.write(antstr)
     sbml_str = te.antimonyToSBML(antstr)
+    
+    if write_sbml:
+        sbml_file = os.path.join(output_dir,
+                          f"{out_pref}_scheme_{scheme}_SBML_initial.txt")
+        output_files.append(sbml_file)
+        with open(sbml_file, "w") as ff:
+            ff.write(sbml_str)
+    
     rr = roadrunner.RoadRunner(sbml_str)
     ss = rr.steadyState()
     vals = rr.getSteadyStateValuesNamedArray()
@@ -170,14 +197,16 @@ def run(scheme, Tstar, scheme_set, sim_params):
     for cc in vals.colnames:
         d[cc] = vals[cc][0] # vals[cc] returns a len(1) array
     d['sum_squared_residuals'] = ss
+    d['gamma'] = exc_rate
     print(d)
     
     if write_sbml:
         sbml_file = os.path.join(output_dir,
-                          f"{out_pref}_scheme_{scheme}_SBML.txt")
+                          f"{out_pref}_scheme_{scheme}_SBML_final.txt")
         output_files.append(sbml_file)
         with open(sbml_file, "w") as ff:
             ff.write(rr.getCurrentSBML())
+            
     return d, out_pref, output_files
 
 def df_plot(df, columns, output_file):
@@ -191,6 +220,8 @@ def df_plot(df, columns, output_file):
     ax.legend()
     ax.set_xlabel(df.index.name)
     ax.set_ylabel("concentration")
+    ax.set_yscale('log')
+    ax.set_ylim([1e-5, 1.0])
     plt.grid(visible=True)
     plt.show()
     plot_file = os.path.splitext(output_file)[0] + ".pdf"
@@ -255,7 +286,7 @@ def loop_over_all(scheme_set, sim_params):
     idx_t = pd.Index(light.phz_stars['Tstar'], name="Tstar")
     idx_ts = pd.MultiIndex.from_product([idx_t, idx_s])
     df.set_index(idx_ts)
-    output_dir = make_outdir(utils.base_dir, scheme_set)
+    output_dir = make_outdir(utils.base_dir, scheme_set, sim_params)
     output_file = os.path.join(output_dir, "all_steady_state.csv")
     df.to_csv(output_file)
     
@@ -294,10 +325,10 @@ def loop_over_all(scheme_set, sim_params):
 
 if __name__ == "__main__":
 
-    scheme_set = "one-photon"
+    scheme_set = "two-photon"
     simulation_params = {
         "intensity"     : "high",
-        "phi_lin_cyc"   : 0.9, # only used for two-photon schemes
+        "phi_lin_cyc"   : 0.5, # only used for two-photon schemes
     }
 
     df = loop_over_all(scheme_set, simulation_params)

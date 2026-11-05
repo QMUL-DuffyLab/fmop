@@ -2,68 +2,171 @@ function constant(t, intensity)
     intensity
 end
 
-model bg(Dr, Do, Cr, Co, E, Estar, Ar, Ao)
-    var species Estar, Cr, Do, Ar
-    const species E, Co, Dr, Ao
+model bg(Dr, Do, Cr, Co, E, Est)
+    var species Do, Cr, Est
+    const species E, Co, Dr
     ke = 1; kc = 1; kd = 1; ka = 1;
-    Edrain : Estar -> E  ; ke * Estar
-    Cdrain : Cr    -> Co ; kc * Cr
-    Ddrain : Do    -> Dr ; kd * Do
-    Adrain : Ar    -> Ao ; ka * Ar
+    Edrain : Est -> E  ; ke * Est
+    Cdrain : Cr  -> Co ; kc * Cr
+    Ddrain : Do  -> Dr ; kd * Do
 end
 
-model ph(gam, P, Pstar, Ps)
-    var species P, Pstar, Ps
+model ph(gam, P, Pst, Ps)
+    var species P, Pst, Ps
     kd = 1; kcsf = 1; kcsb = 1; krc = 1;
-    photo  : P           -> Pstar           ; gam * P
-    decay  : Pstar       -> P               ; kd * Pstar
-    csf    : Pstar       -> Ps              ; kcsf * Pstar
-    csb    : Ps          -> Pstar           ; kcsb * Ps
-    recomb : Ps          -> P               ; krc * Ps
+    photo  : P   -> Pst ; gam  * P
+    decay  : Pst -> P   ; kd   * Pst
+    csf    : Pst -> Ps  ; kcsf * Pst
+    csb    : Ps  -> Pst ; kcsb * Ps
+    recomb : Ps  -> P   ; krc  * Ps
 end
 
 model opA(gam1, gam2)
-   var species P1, P1st, P1s, P1o, P2, P2s, P2st, P2o, Do, Cr, Est, Ar, Qr
-   const species Dr, Co, E, Ao, Qo
+   var species P1, P1st, P1s, P1o, P2, P2st, P2s, P2o
+   var species Do, Cr, Est, Ao, Ar, Ao, Qr, Qo
+   const species Dr, Co, E
    kar = 1; kpo = 1; kco = 1
    PC   : ph(gam1, P1, P1st, P1s)
    Ared : P1s + Ao + E -> P1o + Ar + Est ; kar * P1s * Ao * E
    Dox  : Dr + P1o     -> Do + P1        ; kpo * Dr * P1o
    Cred : Ar + Co      -> Ao + Cr        ; kco * Ar * Co
-   B    : bg(Dr, Do, Cr, Co, E, Estar, Ar, Ao)
+   B    : bg(Dr, Do, Cr, Co, E, Est)
 end
 
 model opB(gam1, gam2)
-   var species P1, P1st, P1s, P1o, P2, P2s, P2st, P2o, Do, Cr, Est, Ar, Qr
-   const species Dr, Co, E, Ao, Qo
+   var species P1, P1st, P1s, P1o, P2, P2st, P2s, P2o
+   var species Do, Cr, Est, Ao, Ar, Ao, Qr, Qo
+   const species Dr, Co, E
    kar = 1; kpo = 1; kco = 1
    PC    : ph(gam1, P1, P1st, P1s)
    Ared  : P1s + Ao + E -> P1o + Ar + Est ; kar * P1s * Ao * E
    Dox   : Dr + P1o     -> Do + P1        ; kpo * Dr * P1o
    Cred  : Ar + Co      -> Ao + Cr        ; kco * Ar * Co
    Credb : Ao + Cr      -> Ar + Co        ; kco * Ao * Cr
-   B     : bg(Dr, Do, Cr, Co, E, Estar, Ar, Ao)
+   B    : bg(Dr, Do, Cr, Co, E, Est)
 end
 
 model opC(gam1, gam2)
-   var species P1, P1st, P1s, P1o, P2, P2s, P2st, P2o, Do, Cr, Est, Ar, Qr
-   const species Dr, Co, E, Ao, Qo
+   var species P1, P1st, P1s, P1o, P2, P2st, P2s, P2o
+   var species Do, Cr, Est, Ao, Ar, Ao, Qr, Qo
+   const species Dr, Co, E
    kar = 1; kpo = 1; kco = 1
    PC    : ph(gam1, P1, P1st, P1s)
    Ared  : P1s + Ao + E   -> P1o + Ar + Est ; kar * P1s * Ao * E
    Dox   : Dr + P1o       -> Do + P1        ; kpo * Dr * P1o
    Cred  : Ar + Co + Est  -> Ao + Cr + E    ; kco * Ar * Co * Est
    Credb : Ao + Cr + E    -> Ar + Co + Est  ; kco * Ao * Cr * E
-   B     : bg(Dr, Do, Cr, Co, E, Estar, Ar, Ao)
+   B    : bg(Dr, Do, Cr, Co, E, Est)
 end
 
 model opD(gam1, gam2)
-   var species P1, P1st, P1s, P1o, P2, P2s, P2st, P2o, Do, Cr, Est, Ar, Qr
-   const species Dr, Co, E, Ao, Qo
+   var species P1, P1st, P1s, P1o, P2, P2st, P2s, P2o
+   var species Do, Cr, Est, Ao, Ar, Ao, Qr, Qo
+   const species Dr, Co, E
    kar = 1; kpo = 1; kco = 1
    PC   : ph(gam1, P1, P1st, P1s)
    Qred : P1s + Qo + E     -> P1o + Qr + Est   ; kar * P1s * Qo * E
    Qox  : Qr + P1o         -> Qo + P1          ; kpo * Qr * P1o
-   Cred : Do + Cr + 3 Est  -> Dr + Co + 3 E    ; kco * Do * Cr * (Est^3);
-   B    : bg(Dr, Do, Cr, Co, E, Estar, Ar, Ao)
+   Cred : Dr + Co + 3 Est  -> Do + Cr + 3 E    ; kco * Dr * Co * (Est^3);
+   B    : bg(Dr, Do, Cr, Co, E, Est)
+end
+
+model tpA(gam1, gam2)
+   var species P1, P1st, P1s, P1o, P2, P2st, P2s, P2o
+   var species Do, Cr, Est, Ao, Ar, Ao, Qr, Qo
+   const species Dr, Co, E
+   kar = 1; kpo = 1; kco = 1
+   PC1  : ph(gam1, P1, P1st, P1s)
+   PC2  : ph(gam2, P2, P2st, P2s)
+   Qred : P1s + Qo     -> P1o + Qr       ; kar * P1s * Qo
+   Dox  : Dr + P1o     -> Do + P1        ; kpo * Dr * P1o
+   Qox  : Qr + P2o + E -> Qo + P2 + Est  ; kpo * Qr * P2o * E
+   Ared : P2s + Ao     -> P2o + Ar       ; kar * P2s * Ao
+   Cred : Ar + Co      -> Ao + Cr        ; kco * Ar * Co
+   B    : bg(Dr, Do, Cr, Co, E, Est)
+end
+
+model tpB(gam1, gam2)
+   var species P1, P1st, P1s, P1o, P2, P2st, P2s, P2o
+   var species Do, Cr, Est, Ao, Ar, Ao, Qr, Qo
+   const species Dr, Co, E
+   kar = 1; kpo = 1; kco = 1
+   PC1   : ph(gam1, P1, P1st, P1s)
+   PC2   : ph(gam2, P2, P2st, P2s)
+   Qred  : P1s + Qo     -> P1o + Qr       ; kar * P1s * Qo
+   Dox   : Dr + P1o     -> Do + P1        ; kpo * Dr * P1o
+   Qox   : Qr + P2o + E -> Qo + P2 + Est  ; kpo * Qr * P2o * E
+   Ared  : P2s + Ao     -> P2o + Ar       ; kar * P2s * Ao
+   Cred  : Ar + Co      -> Ao + Cr        ; kco * Ar * Co
+   Credb : Ao + Cr      -> Ar + Co        ; kco * Ao * Cr
+   B     : bg(Dr, Do, Cr, Co, E, Est)
+end
+
+model tpC(gam1, gam2)
+   var species P1, P1st, P1s, P1o, P2, P2st, P2s, P2o
+   var species Do, Cr, Est, Ao, Ar, Ao, Qr, Qo
+   const species Dr, Co, E
+   kar = 1; kpo = 1; kco = 1
+   PC1   : ph(gam1, P1, P1st, P1s)
+   PC2   : ph(gam2, P2, P2st, P2s)
+   Qred  : P1s + Qo      -> P1o + Qr      ; kar * P1s * Qo
+   Dox   : Dr + P1o      -> Do + P1       ; kpo * Dr * P1o
+   Qox   : Qr + P2o + E  -> Qo + P2 + Est ; kpo * Qr * P2o * E
+   Ared  : P2s + Ao      -> P2o + Ar      ; kar * P2s * Ao
+   Cred  : Ar + Co + Est -> Ao + Cr + E   ; kco * Ar * Co * Est
+   Credb : Ao + Cr + E   -> Ar + Co + Est ; kco * Ao * Cr * E
+   B     : bg(Dr, Do, Cr, Co, E, Est)
+end
+
+model tpD(gam1, gam2)
+   var species P1, P1st, P1s, P1o, P2, P2st, P2s, P2o
+   var species Do, Cr, Est, Ao, Ar, Ao, Qr, Qo
+   const species Dr, Co, E
+   kar = 1; kpo = 1; kco = 1
+   PC1  : ph(gam1, P1, P1st, P1s)
+   PC2  : ph(gam2, P2, P2st, P2s)
+   Qred : P1s + Qo     -> P1o + Qr       ; kar * P1s * Qo
+   Dox  : Dr + P1o     -> Do + P1        ; kpo * Dr * P1o
+   Qox  : Qr + P2o + E -> Qo + P2 + Est  ; kpo * Qr * P2o * E
+   Ared : P2s + Ao     -> P2o + Ar       ; kar * P2s * Ao
+   Cred : Ar + Co      -> Ao + Cr        ; kco * Ar * Co
+   B    : bg(Dr, Do, Cr, Co, E, Est)
+   AQc  : Ar + Qo -> Ao + Qr; kar * Ar * Qo
+   AQcb : Ao + Qr -> Ar + Qo; kar * Ao * Qr
+end
+
+model tpE(gam1, gam2)
+   var species P1, P1st, P1s, P1o, P2, P2st, P2s, P2o
+   var species Do, Cr, Est, Ao, Ar, Ao, Qr, Qo
+   const species Dr, Co, E
+   kar = 1; kpo = 1; kco = 1
+   PC1   : ph(gam1, P1, P1st, P1s)
+   PC2   : ph(gam2, P2, P2st, P2s)
+   Qred  : P1s + Qo     -> P1o + Qr       ; kar * P1s * Qo
+   Dox   : Dr + P1o     -> Do + P1        ; kpo * Dr * P1o
+   Qox   : Qr + P2o + E -> Qo + P2 + Est  ; kpo * Qr * P2o * E
+   Ared  : P2s + Ao     -> P2o + Ar       ; kar * P2s * Ao
+   Cred  : Ar + Co      -> Ao + Cr        ; kco * Ar * Co
+   Credb : Ao + Cr      -> Ar + Co        ; kco * Ao * Cr
+   B     : bg(Dr, Do, Cr, Co, E, Est)
+   AQc   : Ar + Qo -> Ao + Qr; kar * Ar * Qo
+   AQcb  : Ao + Qr -> Ar + Qo; kar * Ao * Qr
+end
+
+model tpF(gam1, gam2)
+   var species P1, P1st, P1s, P1o, P2, P2st, P2s, P2o
+   var species Do, Cr, Est, Ao, Ar, Ao, Qr, Qo
+   const species Dr, Co, E
+   kar = 1; kpo = 1; kco = 1
+   PC1   : ph(gam1, P1, P1st, P1s)
+   PC2   : ph(gam2, P2, P2st, P2s)
+   Qred  : P1s + Qo      -> P1o + Qr       ; kar * P1s * Qo
+   Dox   : Dr + P1o      -> Do + P1        ; kpo * Dr * P1o
+   Qox   : Qr + P2o + E  -> Qo + P2 + Est  ; kpo * Qr * P2o * E
+   Ared  : P2s + Ao      -> P2o + Ar       ; kar * P2s * Ao
+   Cred  : Ar + Co + Est -> Ao + Cr + E    ; kco * Ar * Co * Est
+   Credb : Ao + Cr + E   -> Ar + Co + Est  ; kco * Ao * Cr * E
+   B     : bg(Dr, Do, Cr, Co, E, Est)
+   AQc   : Ar + Qo -> Ao + Qr; kar * Ar * Qo
+   AQcb  : Ao + Qr -> Ar + Qo; kar * Ao * Qr
 end
